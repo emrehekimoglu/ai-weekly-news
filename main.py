@@ -124,17 +124,26 @@ def get_subscribers():
             rows = sheet.get_all_values()
             
             active_subscribers = []
-            for row in rows[1:]:
+            seen_emails = set()  # Tekilleştirme kümesi
+
+            # Tabloyu tersten (en güncel kayıttan eskiye) tara
+            for row in reversed(rows[1:]):
                 if len(row) >= 4:
-                    email = row[1].strip()
+                    email = row[1].strip().lower()
                     status = row[2].strip().upper()
                     token = row[3].strip()
                     
+                    # Eğer bu e-posta daha önce listeye eklendiyse ATLA
+                    if email in seen_emails:
+                        continue
+                    
+                    # Sadece AKTİF ise ekle ve gördüklerimize kaydet
                     if status == "AKTIF" and "@" in email:
                         active_subscribers.append({"email": email, "token": token})
+                        seen_emails.add(email)
 
             if active_subscribers:
-                print(f"✓ Toplam {len(active_subscribers)} AKTİF abone bulundu.")
+                print(f"✓ Toplam {len(active_subscribers)} TEKİL aktif abone bulundu.")
                 return active_subscribers
             else:
                 print("[UYARI] Tabloda 'AKTIF' statüsünde abone bulunamadı!")
