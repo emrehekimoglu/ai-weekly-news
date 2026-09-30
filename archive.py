@@ -67,6 +67,7 @@ def render_issue(content, date_str):
 
     # <head> içindeki eski title'ı at, kendi meta/title'ımızı ekle
     content = re.sub(r"<title\b.*?</title\s*>", "", content, flags=re.IGNORECASE | re.DOTALL)
+    content = re.sub(r"<meta\s+charset[^>]*>", "", content, flags=re.IGNORECASE)
     if re.search(r"<head\b[^>]*>", content, re.IGNORECASE):
         content = re.sub(r"(<head\b[^>]*>)", lambda m: m.group(1) + "\n" + _head(title), content,
                          count=1, flags=re.IGNORECASE)
