@@ -10,6 +10,10 @@ on:
         description: 'Sadece veri topla (model ve e-posta atlanır)'
         type: boolean
         default: false
+      preview:
+        description: 'Önizleme: bülteni üret, sadece bana gönder (abonelere gitmez)'
+        type: boolean
+        default: false
 
 jobs:
   build-and-send:
@@ -41,4 +45,14 @@ jobs:
           REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
           REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
           DRY_RUN: ${{ inputs.dry_run }}
+          PREVIEW: ${{ inputs.preview }}
+          PREVIEW_EMAIL: ${{ secrets.PREVIEW_EMAIL }}
         run: python main.py
+
+      - name: Önizleme HTML'ini Yükle
+        if: always() && inputs.preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: newsletter-preview
+          path: newsletter.html
+          if-no-files-found: ignore
