@@ -1,58 +1,57 @@
-"""OpenCode Go üzerinden LLM ile bülten HTML'i üretimi ve doğrulaması."""
+"""OpenCode Go üzerinden LLM ile haftanın seçkisi (JSON) ve doğrulaması."""
 
+import json
 import logging
-import re
 import time
 import uuid
 
 from openai import OpenAI
 
 from newsletter import config
+from newsletter.models import Digest, DigestEntry
 
 log = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = "Sen profesyonel bir teknoloji bülteni editörüsün."
 
+CATEGORIES = ["Yeni Model", "Açık Kaynak", "Araştırma", "Güvenlik & Olay", "Endüstri"]
+MAX_DIGEST_CARDS = 12
+
 PROMPT = """
 Sen dünya standartlarında kıdemli bir yapay zeka ve teknoloji baş editörüsün.
-Aşağıda son bir haftada yayımlanan ham teknoloji haberleri, makaleler, model duyuruları ve viral topluluk tartışmaları (orijinal tarihleriyle birlikte) yer alıyor:
+Aşağıda son bir haftada yayımlanan ham teknoloji haberleri, makaleler, model duyuruları ve viral topluluk tartışmaları numaralı olarak yer alıyor:
 
 {raw_data}
 
 GÖREVİN:
 Bu verileri titizlikle filtreleyerek haftanın EN ÖNEMLİ 10 gelişmesini seç.
 (Eğer bu hafta gerçekten kaçırılmaması gereken çok kritik gelişmeler olduysa en fazla 12'ye kadar esneyebilirsin; yani toplam 10 ila 12 madde seç).
+Aynı olayı anlatan birden fazla kayıt varsa sadece en iyi kaynağı seç.
 
 İÇERİK SEÇİMİNDE ÖNCELİK SIRAN (ÇOK ÖNEMLİ):
 1. YENİ MODEL LANSMANLARI: Yeni bir GPT, Claude, Gemini, Grok, Llama veya güçlü açık kaynak model duyurulduysa MUTLAKA İLK SIRALARDA YER VER.
 2. VİRAL / SKANDAL / GÜVENLİK OLAYLARI: Modellerin beklenmedik/çıldıran davranışları, güvenlik filtrelerinin çökmesi (jailbreak), sansür tartışmaları veya büyük şirket krizleri varsa MUTLAKA BÜLTENE DAHİL ET.
 3. ÇIĞIR AÇICI ARAŞTIRMALAR & AÇIK KAYNAK: Yeni bir mimari öneren akademik çalışmalar ve GitHub'da patlayan açık kaynak projeler.
 
-ŞABLON VE TASARIM KURALLARI:
-1. Türkçe yaz.
-2. EN ÜSTE ŞIK BİR HEADER ALANI EKLE:
-   - Yuvarlak yapay zekâ ikonu (harici görsel KULLANMA, birebir bu kodu kullan): `<span style="display: inline-block; width: 44px; height: 44px; line-height: 44px; border-radius: 50%; background: #2563eb; color: #ffffff; text-align: center; font-size: 24px; vertical-align: middle; margin-right: 12px;">🤖</span>`
-   - Yanına kalın ve modern bir fontla "AI & TEKNOLOJİ RADARI" başlığı.
-   - Altına gri ve küçük puntolarla "Haftalık Kürasyon • Yeni Modeller, Makaleler, Açık Kaynak ve Gelişmeler" notu.
-   - Altına ince bir ayırıcı çizgi (`<hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">`).
-3. Header'ın hemen altına 2 cümlelik samimi ve vizyoner bir "Haftanın Özeti" girişi yap.
-4. Seçilen her gelişme için temiz bir HTML kart tasarımı (`border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px; margin-bottom: 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #ffffff;`) kullan.
-5. HER KARTTA SADECE ŞUNLAR YER ALMALIDIR:
-   - **Başlık**: Kalın ve belirgin (ilgili model, proje veya haberin adı).
-   - **Tarih & Kategori Rozetleri**:
-     Başlığın hemen altında yan yana iki rozet:
-     1. Tarih Rozeti: `<span style="background: #f1f5f9; padding: 3px 8px; border-radius: 4px; font-size: 12px; color: #475569; margin-right: 8px;">📅 [Yayın Tarihi]</span>` (Ham verideki tarihi birebir kullan).
-     2. Kategori Rozeti: `<span style="background: #e0f2fe; padding: 3px 8px; border-radius: 4px; font-size: 12px; color: #0369a1;">[Kategori: Yeni Model / Açık Kaynak / Araştırma / Güvenlik & Olay / Endüstri]</span>`
-   - **Özet**: 2-3 cümle ile ne olduğunu, modelin/olayın detayını ve teknik yönünü merak uyandırıcı, doğrudan ve net şekilde anlat.
-     **KESİN KURAL:** 'Neden Önemli?' gibi ayrı bir başlık veya paragraf KESİNLİKLE EKLEME. Sadece doyurucu tek bir özet paragrafı yaz.
-   - **Kaynak Butonu**: Tıklanabilir buton (`<a href="..." style="display: inline-block; margin-top: 10px; color: #2563eb; text-decoration: none; font-weight: bold; font-size: 13px;">Kaynağa Git →</a>`).
-6. Sadece geçerli `<html><body style="background-color: #f8fafc; padding: 20px; font-family: sans-serif;">...</body></html>` kodunu döndür, markdown tırnakları (```html) KULLANMA.
+YAZIM KURALLARI:
+- Her şeyi Türkçe yaz.
+- "intro": 2 cümlelik samimi ve vizyoner bir "Haftanın Özeti" girişi.
+- Her seçilen madde için:
+  - "id": Ham verideki köşeli parantez içindeki numara (tam sayı). Bağlantı ve tarih bu numaradan alınır, kendin bağlantı YAZMA.
+  - "title": Kısa ve belirgin başlık (ilgili model, proje veya haberin adı).
+  - "category": Şunlardan biri: {categories}
+  - "summary": 2-3 cümle ile ne olduğunu, modelin/olayın detayını ve teknik yönünü merak uyandırıcı, doğrudan ve net şekilde anlat. 'Neden Önemli?' gibi ayrı bir bölüm EKLEME.
+- Maddeleri önem sırasına göre diz.
+
+ÇIKTI BİÇİMİ:
+Sadece aşağıdaki yapıda geçerli bir JSON nesnesi döndür; HTML, markdown veya açıklama EKLEME:
+{{"intro": "...", "items": [{{"id": 3, "title": "...", "category": "Yeni Model", "summary": "..."}}]}}
 """
 
 
 def build_prompt(items):
     raw_data = "\n".join(item.to_prompt(idx) for idx, item in enumerate(items, 1))
-    return PROMPT.format(raw_data=raw_data)
+    return PROMPT.format(raw_data=raw_data, categories=" / ".join(CATEGORIES))
 
 
 def _client():
@@ -64,7 +63,7 @@ def _client():
 
 
 def generate_digest(items):
-    """Toplanan haberlerden bülten HTML'i üretir; geçerli HTML gelene kadar birkaç kez dener."""
+    """Modelden haftanın seçkisini JSON olarak alır; geçerli yanıt gelene kadar birkaç kez dener."""
     log.info("OpenCode Go üzerinden bülten hazırlanıyor...")
     client = _client()
     messages = [
@@ -77,10 +76,10 @@ def generate_digest(items):
         try:
             response = client.chat.completions.create(
                 model=config.MODEL_NAME, temperature=0.2, messages=messages, timeout=180)
-            content = strip_code_fences(response.choices[0].message.content or "")
-            validate_digest_html(content)
-            log.info("✓ Bülten HTML'i doğrulandı (deneme %d/%d).", attempt, config.LLM_MAX_ATTEMPTS)
-            return content
+            digest = parse_digest(response.choices[0].message.content or "", items)
+            log.info("✓ Bülten seçkisi doğrulandı: %d haber (deneme %d/%d).",
+                     len(digest.entries), attempt, config.LLM_MAX_ATTEMPTS)
+            return digest
         except Exception as e:
             last_error = e
             log.warning("[UYARI] Bülten üretimi başarısız (deneme %d/%d): %s", attempt, config.LLM_MAX_ATTEMPTS, e)
@@ -92,29 +91,59 @@ def generate_digest(items):
     raise RuntimeError(f"Bülten {config.LLM_MAX_ATTEMPTS} denemede üretilemedi: {last_error}")
 
 
-def strip_code_fences(content):
-    """Modelin eklediği ```html tırnaklarını temizler."""
-    content = content.strip()
-    if content.startswith("```html"):
-        content = content[7:]
-    elif content.startswith("```"):
-        content = content[3:]
-    if content.endswith("```"):
-        content = content[:-3]
-    return content.strip()
+def extract_json(content):
+    """Yanıttaki JSON nesnesini çıkarır (```json tırnakları veya öncesindeki/sonrasındaki metin atlanır)."""
+    start, end = content.find("{"), content.rfind("}")
+    if start == -1 or end < start:
+        raise ValueError("Yanıtta JSON nesnesi yok")
+    try:
+        return json.loads(content[start:end + 1])
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Geçersiz JSON: {e}") from e
 
 
-def validate_digest_html(content):
-    """Bozuk veya eksik HTML'in abonelere gitmesini engellemek için temel kontroller."""
-    lower = content.lower()
-    if len(content) < 2000:
-        raise ValueError(f"HTML çok kısa ({len(content)} karakter)")
-    if "<html" not in lower or "</html>" not in lower:
-        raise ValueError("<html> veya </html> etiketi eksik")
-    if "<body" not in lower or "</body>" not in lower:
-        raise ValueError("<body> veya </body> etiketi eksik (iptal bağlantısı eklenemez)")
-    if lower.index("<body") > lower.index("</body>"):
-        raise ValueError("<body> etiketleri sırasız")
-    link_count = len(re.findall(r'<a\s[^>]*href="https?://', content, re.IGNORECASE))
-    if link_count < config.MIN_DIGEST_CARDS:
-        raise ValueError(f"Yalnızca {link_count} kaynak bağlantısı var (en az {config.MIN_DIGEST_CARDS} bekleniyor)")
+def _text(value, field):
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"'{field}' boş veya metin değil")
+    return " ".join(value.split())
+
+
+def parse_digest(content, items):
+    """Model yanıtını doğrulayıp Digest'e çevirir; bozuk yanıtın abonelere gitmesini engeller.
+
+    Bağlantı ve tarih her zaman kaynak öğeden alınır; modelin uydurduğu bağlantı bültene giremez.
+    """
+    data = extract_json(content)
+    if not isinstance(data, dict):
+        raise ValueError("JSON bir nesne değil")
+    intro = _text(data.get("intro"), "intro")
+    picks = data.get("items")
+    if not isinstance(picks, list):
+        raise ValueError("'items' listesi yok")
+
+    entries, seen = [], set()
+    for pick in picks:
+        if not isinstance(pick, dict):
+            raise ValueError("'items' içinde nesne olmayan öğe var")
+        idx = pick.get("id")
+        if isinstance(idx, str) and idx.strip().isdigit():
+            idx = int(idx)
+        if not isinstance(idx, int) or not 1 <= idx <= len(items):
+            raise ValueError(f"Geçersiz haber numarası: {idx!r}")
+        if idx in seen:
+            continue
+        seen.add(idx)
+        category = pick.get("category")
+        if category not in CATEGORIES:
+            log.warning("Bilinmeyen kategori %r, 'Endüstri' kullanıldı", category)
+            category = "Endüstri"
+        entries.append(DigestEntry(
+            item=items[idx - 1],
+            title=_text(pick.get("title"), "title"),
+            category=category,
+            summary=_text(pick.get("summary"), "summary"),
+        ))
+
+    if len(entries) < config.MIN_DIGEST_CARDS:
+        raise ValueError(f"Yalnızca {len(entries)} haber seçilmiş (en az {config.MIN_DIGEST_CARDS} bekleniyor)")
+    return Digest(intro=intro, entries=entries[:MAX_DIGEST_CARDS])

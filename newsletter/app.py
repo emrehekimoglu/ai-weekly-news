@@ -1,9 +1,10 @@
-"""Ana akış: ayar kontrolü → veri toplama → LLM ile bülten → gönderim."""
+"""Ana akış: ayar kontrolü → veri toplama → LLM ile seçki → şablondan e-posta → gönderim."""
 
 import logging
 import sys
 
 from newsletter import config, llm, mailer, subscribers
+from newsletter.render import render_html
 from newsletter.sources import SOURCES, collect
 
 log = logging.getLogger(__name__)
@@ -40,7 +41,7 @@ def main():
 
     log.info("Toplam %d adet aday içerik toplandı. Modele aktarılıyor...", len(items))
     try:
-        newsletter_html = llm.generate_digest(items)
+        digest = llm.generate_digest(items)
     except Exception as e:
         # Bozuk bülten göndermek yerine çalışmayı hata ile bitir
         log.error("[HATA] %s. E-posta gönderilmedi.", e)
@@ -49,12 +50,12 @@ def main():
     sheets_error = None
     if config.PREVIEW:
         with open(config.PREVIEW_FILE, "w", encoding="utf-8") as f:
-            f.write(newsletter_html)
+            f.write(render_html(digest))
         log.info("ÖNİZLEME: Bülten %s dosyasına kaydedildi; abonelere gönderilmeyecek.", config.PREVIEW_FILE)
-        failed = mailer.send_all(newsletter_html, subscribers.get_preview_recipients(),
+        failed = mailer.send_all(digest, subscribers.get_preview_recipients(),
                                  subject=f"[ÖNİZLEME] {mailer.newsletter_subject()}")
     else:
         recipients, sheets_error = subscribers.get_subscribers()
-        failed = mailer.send_all(newsletter_html, recipients)
+        failed = mailer.send_all(digest, recipients)
     if failed is None or failed or sheets_error:
         sys.exit(1)
