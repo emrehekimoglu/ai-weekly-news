@@ -33,6 +33,10 @@ PREVIEW_FILE = "newsletter.html"
 
 SUBSCRIBERS_FILE = "subscribers.txt"
 
+# Gönderilen sayıların kaydı; iş akışı bu dosyayı depoya commit eder
+HISTORY_FILE = "data/history.json"
+HISTORY_ISSUES = 8  # bu kadar sayı geriye bakılır
+
 # feedparser.parse(url) zaman aşımı desteklemez; RSS/Atom akışları requests ile bu sürede çekilir
 FEED_TIMEOUT_SECONDS = 15
 

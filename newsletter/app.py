@@ -1,9 +1,11 @@
-"""Ana akış: ayar kontrolü → veri toplama → LLM ile seçki → şablondan e-posta → gönderim."""
+"""Ana akış: ayar kontrolü → veri toplama → tekrarları eleme → LLM ile seçki → şablondan e-posta → gönderim."""
 
 import logging
 import sys
+from datetime import datetime, timezone
 
-from newsletter import config, llm, mailer, subscribers
+from newsletter import config, history, llm, mailer, subscribers
+from newsletter.dedup import remove_duplicates
 from newsletter.render import render_html
 from newsletter.sources import SOURCES, collect
 
@@ -26,22 +28,30 @@ def main():
             sys.exit(1)
 
     by_source = collect(SOURCES)
-    items = [item for source_items in by_source.values() for item in source_items]
-    if not items:
+    collected = [item for source_items in by_source.values() for item in source_items]
+    if not collected:
         log.error("Hiçbir kaynaktan veri toplanamadı!")
         return
 
+    past_issues = history.load()
+    items = history.remove_seen(remove_duplicates(collected), past_issues)
+
     if config.DRY_RUN:
-        log.info("DRY_RUN: Toplam %d içerik toplandı. Model ve e-posta atlandı.", len(items))
+        log.info("DRY_RUN: Toplam %d içerik toplandı, tekrarlar ve önceki sayılardakiler çıkınca %d kaldı. "
+                 "Model ve e-posta atlandı.", len(collected), len(items))
         for name, source_items in by_source.items():
             log.info("%s: %d", name, len(source_items))
             for item in source_items:
                 log.info("  - [%s] %s", item.source, item.title)
         return
 
+    if not items:
+        log.error("[HATA] Tekrarlar çıkınca yeni haber kalmadı. E-posta gönderilmedi.")
+        sys.exit(1)
+
     log.info("Toplam %d adet aday içerik toplandı. Modele aktarılıyor...", len(items))
     try:
-        digest = llm.generate_digest(items)
+        digest = llm.generate_digest(items, history.recent_titles(past_issues))
     except Exception as e:
         # Bozuk bülten göndermek yerine çalışmayı hata ile bitir
         log.error("[HATA] %s. E-posta gönderilmedi.", e)
@@ -57,5 +67,7 @@ def main():
     else:
         recipients, sheets_error = subscribers.get_subscribers()
         failed = mailer.send_all(digest, recipients)
+        if failed is not None and len(failed) < len(recipients):
+            history.record(digest, datetime.now(timezone.utc).strftime("%Y-%m-%d"))
     if failed is None or failed or sheets_error:
         sys.exit(1)

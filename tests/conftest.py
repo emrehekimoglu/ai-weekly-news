@@ -19,6 +19,14 @@ def make_digest(count=5):
     return Digest(intro="Haftanın özeti.", entries=entries)
 
 
+@pytest.fixture(autouse=True)
+def isolated_history(monkeypatch, tmp_path):
+    """Testler depodaki data/history.json dosyasına asla dokunmaz."""
+    path = tmp_path / "history.json"
+    monkeypatch.setattr(config, "HISTORY_FILE", str(path))
+    return path
+
+
 @pytest.fixture
 def set_config(monkeypatch):
     """set_config(AD=değer, ...) ile newsletter.config değerlerini test süresince değiştirir."""
