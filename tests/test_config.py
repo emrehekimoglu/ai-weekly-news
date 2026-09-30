@@ -13,6 +13,8 @@ COMPLETE = {
     "EMAIL_RECEIVER": "",
     "GCP_SA_KEY": json.dumps({"type": "service_account"}),
     "SPREADSHEET_ID": "sheet",
+    "PREVIEW": False,
+    "PREVIEW_EMAIL": None,
 }
 
 
@@ -53,6 +55,13 @@ def test_email_receiver_alone_is_a_recipient_source(config):
 def test_no_recipient_source(config):
     config(GCP_SA_KEY=None, SPREADSHEET_ID=None)
     assert any("Alıcı" in p for p in main.check_config())
+
+
+def test_preview_needs_owner_address_not_sheet(config):
+    config(PREVIEW=True, GCP_SA_KEY=None, SPREADSHEET_ID=None)
+    assert any("Önizleme" in p for p in main.check_config())
+    config(PREVIEW_EMAIL="me@example.com")
+    assert main.check_config() == []
 
 
 def test_main_stops_before_fetching_when_config_missing(config, monkeypatch):
