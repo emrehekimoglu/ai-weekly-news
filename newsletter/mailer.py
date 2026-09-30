@@ -18,10 +18,16 @@ log = logging.getLogger(__name__)
 SENDER_NAME = "🤖 AI & Teknoloji Radarı"
 
 
-def newsletter_subject(today=None):
-    """Tarihli konu satırı; Gmail'in haftaları tek bir konuşmada toplamasını engeller."""
+def newsletter_subject(today=None, digest=None):
+    """Tarihli konu satırı; Gmail'in haftaları tek bir konuşmada toplamasını engeller.
+
+    Haftanın manşeti varsa konu satırı odur (açılma oranını en çok o belirler).
+    """
     today = today or datetime.now(timezone.utc)
-    return f"🚀 Haftalık Yapay Zekâ & Teknoloji Radarı • {parse_to_turkish_date(today.strftime('%Y-%m-%d'))}"
+    date = parse_to_turkish_date(today.strftime('%Y-%m-%d'))
+    if digest is not None and digest.headline:
+        return f"{digest.headline} • Radar, {date}"
+    return f"🚀 Haftalık Yapay Zekâ & Teknoloji Radarı • {date}"
 
 
 def mask_email(email):
@@ -71,7 +77,7 @@ def send_all(digest, recipients, subject=None):
         return None
 
     log.info("Toplam %d kişiye e-posta gönderimi başlıyor...", len(recipients))
-    subject = subject or newsletter_subject()
+    subject = subject or newsletter_subject(digest=digest)
     failed = []
 
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:

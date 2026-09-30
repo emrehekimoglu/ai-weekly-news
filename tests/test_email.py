@@ -22,15 +22,39 @@ def test_subject_contains_turkish_date():
     assert subject.endswith("• 28 Eylül 2026")
 
 
-def test_html_template_has_header_cards_and_footer():
+def test_subject_uses_headline_when_present():
+    day = datetime(2026, 9, 28, tzinfo=timezone.utc)
+    assert mailer.newsletter_subject(day, make_digest(cover=True)) == "Açık kaynak arayı kapattı mı? • Radar, 28 Eylül 2026"
+    assert mailer.newsletter_subject(day, make_digest()) == mailer.newsletter_subject(day)
+
+
+def test_html_template_has_cover_story_ranked_list_and_footer():
     html = render_html(make_digest(), UNSUB)
     assert "AI &amp; TEKNOLOJİ RADARI" in html
+    assert "29 Eylül 2026" in html
     assert "Haftanın özeti." in html
-    assert html.count("Kaynağa Git →") == 5
-    assert 'href="https://example.com/3"' in html
-    assert "📅 28 Eylül 2026" in html
+    assert "Kapak Haberi · Yeni Model" in html
+    assert html.count("Haberin tamamı &rarr;") == 1
+    assert html.count("Devamı &rarr;") == 4
+    for i in range(1, 6):
+        assert f'href="https://example.com/{i}"' in html
+    assert ">05<" in html and ">01<" not in html
     assert 'href="https://script.example.com/exec?action=unsubscribe&amp;email=a%40example.com&amp;token=t"' in html
-    assert "<img" not in html and "flaticon" not in html
+    assert "<img" not in html and "<script" not in html
+
+
+def test_html_template_skips_cover_blocks_without_cover_fields():
+    html = render_html(make_digest())
+    assert "30 SANİYEDE BU HAFTA" not in html
+    assert "HAFTANIN RAKAMI" not in html
+    assert ">Haftanın Özeti<" in html
+
+
+def test_html_template_shows_cover_blocks():
+    html = render_html(make_digest(cover=True))
+    assert "Açık kaynak arayı kapattı mı?" in html
+    assert "30 SANİYEDE BU HAFTA" in html and html.count("&rarr;&nbsp; ") == 3
+    assert "HAFTANIN RAKAMI" in html and "10 GW" in html and "Rekor çip siparişi." in html
 
 
 def test_html_template_escapes_model_text():
@@ -44,11 +68,18 @@ def test_html_template_escapes_model_text():
 
 def test_text_template():
     text = render_text(make_digest(), UNSUB)
-    assert text.startswith("AI & TEKNOLOJİ RADARI\n")
-    assert "1. Haber 1\n📅 28 Eylül 2026 • Yeni Model\nÖzet 1.\nKaynağa Git → https://example.com/1\n" in text
+    assert text.startswith("AI & TEKNOLOJİ RADARI • 29 Eylül 2026\n")
+    assert "1. Haber 1\nYeni Model • s • 28 Eylül 2026\nÖzet 1.\nKaynağa Git → https://example.com/1\n" in text
     assert "<" not in text
     assert f"Abonelikten ayrılmak için: {UNSUB}" in text
     assert "Abonelikten ayrılmak için" not in render_text(make_digest())
+
+
+def test_text_template_with_cover_fields():
+    text = render_text(make_digest(cover=True))
+    assert "AÇIK KAYNAK ARAYI KAPATTI MI?\n\nHaftanın özeti.\n" in text
+    assert "30 SANİYEDE BU HAFTA\n→ Birinci madde.\n→ İkinci madde.\n→ Üçüncü madde.\n" in text
+    assert "HAFTANIN RAKAMI: 10 GW\nRekor çip siparişi.\n" in text
 
 
 def test_unsubscribe_url_needs_web_app_and_token(set_config):

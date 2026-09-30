@@ -1,6 +1,9 @@
 """Kaynaklardan toplanan haberlerin ortak veri yapısı."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+
+from newsletter.dates import parse_to_turkish_date
 
 
 @dataclass
@@ -27,6 +30,22 @@ class DigestEntry:
 
 
 @dataclass
+class Stat:
+    """"Haftanın Rakamı": haberlerden birindeki çarpıcı sayı ve ne anlama geldiği."""
+    value: str  # örn. "10 GW", "%40"
+    label: str
+
+
+def _today():
+    return parse_to_turkish_date(datetime.now(timezone.utc).strftime("%Y-%m-%d"))
+
+
+@dataclass
 class Digest:
     intro: str  # "Haftanın Özeti" (2 cümle)
     entries: list[DigestEntry]
+    # Kapak alanları isteğe bağlı: model vermezse şablon bu bölümleri atlar
+    headline: str | None = None  # haftanın manşeti, konu satırında da kullanılır
+    tldr: list[str] = field(default_factory=list)  # "30 saniyede bu hafta" maddeleri
+    stat: Stat | None = None
+    date: str = field(default_factory=_today)  # sayının Türkçe tarihi
