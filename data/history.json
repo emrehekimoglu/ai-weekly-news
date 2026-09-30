@@ -1,3 +1,69 @@
 {
-  "issues": []
+  "issues": [
+    {
+      "date": "2026-09-30",
+      "entries": [
+        {
+          "title": "OpenAI GPT-6.1 Sol",
+          "link": "https://openai.com/index/introducing-gpt-6-1-sol",
+          "source": "OpenAI"
+        },
+        {
+          "title": "Gemini 4 Argon",
+          "link": "https://deepmind.google/blog/gemini-4-argon-our-next-era-of-frontier-intelligence/",
+          "source": "Google DeepMind"
+        },
+        {
+          "title": "Claude'un enzim keşfi",
+          "link": "https://www.anthropic.com/news/claude-discovers-novel-enzyme-system",
+          "source": "Anthropic"
+        },
+        {
+          "title": "Astra insansı robotu yönetiyor",
+          "link": "https://www.reddit.com/r/singularity/comments/1wqwcqe/gpt6_astra_can_now_control_a_humanoid_robot_in_a/",
+          "source": "Reddit r/singularity"
+        },
+        {
+          "title": "OpenAI damıtma kampanyasını bozdu",
+          "link": "https://openai.com/index/disrupting-a-coordinated-model-distillation-campaign",
+          "source": "OpenAI"
+        },
+        {
+          "title": "NVIDIA OpenShell",
+          "link": "https://www.reddit.com/r/LocalLLaMA/comments/1ws9ydg/nvidia_shipped_openshell_an_open_source_sandbox/",
+          "source": "Reddit r/LocalLLaMA"
+        },
+        {
+          "title": "Sübvanse edilmiş hesaplama dönemi bitiyor",
+          "link": "https://www.reddit.com/r/LocalLLaMA/comments/1wt5f4e/looks_like_the_era_of_subsidised_compute_is/",
+          "source": "Reddit r/LocalLLaMA"
+        },
+        {
+          "title": "RSA'yı kırmanın yeni yolu",
+          "link": "https://arstechnica.com/security/2026/09/theres-a-new-way-to-break-rsa-thats-faster-than-anything-weve-seen-before/",
+          "source": "Ars Technica"
+        },
+        {
+          "title": "Cloudflare'den kuantum güvenli TLS",
+          "link": "https://arstechnica.com/security/2026/09/cloudflare-plans-to-issue-quantum-safe-tls-certificates/",
+          "source": "Ars Technica"
+        },
+        {
+          "title": "2000 dolara Photoshop klonu",
+          "link": "https://www.reddit.com/r/singularity/comments/1wpi9b4/person_spent_2000_in_tokens_to_recreate_adobe/",
+          "source": "Reddit r/singularity"
+        },
+        {
+          "title": "Minecraft, Elden Ring'e taşındı",
+          "link": "https://www.reddit.com/r/singularity/comments/1wtiubh/someone_using_opus_55_ports_the_entire_game_of/",
+          "source": "Reddit r/singularity"
+        },
+        {
+          "title": "GPT-3 kullanımdan kaldırıldı",
+          "link": "https://www.reddit.com/r/LocalLLaMA/comments/1ws67x4/gpt3_is_discontinued_today/",
+          "source": "Reddit r/LocalLLaMA"
+        }
+      ]
+    }
+  ]
 }
