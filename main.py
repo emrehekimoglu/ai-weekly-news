@@ -46,6 +46,10 @@ REDDIT_CLIENT_ID = os.environ.get("REDDIT_CLIENT_ID")
 REDDIT_CLIENT_SECRET = os.environ.get("REDDIT_CLIENT_SECRET")
 # "true" ise sadece veri toplanır; model çağrılmaz, e-posta gönderilmez
 DRY_RUN = os.environ.get("DRY_RUN", "").lower() == "true"
+# "true" ise bülten tam üretilir ama sadece sahibine (PREVIEW_EMAIL, yoksa EMAIL_RECEIVER) gönderilir
+PREVIEW = os.environ.get("PREVIEW", "").lower() == "true"
+PREVIEW_EMAIL = os.environ.get("PREVIEW_EMAIL")
+PREVIEW_FILE = "newsletter.html"
 
 
 # ==========================================
@@ -507,7 +511,13 @@ def validate_digest_html(content):
 # ==========================================
 # 5. E-POSTA DAĞITIMI
 # ==========================================
-def send_newsletter_to_all(html_content, recipients):
+def get_preview_recipients():
+    """Önizleme alıcısı: yalnızca bülten sahibi. Abone listesine asla bakılmaz."""
+    email = (PREVIEW_EMAIL or EMAIL_RECEIVER or "").strip()
+    return [{"email": email, "token": ""}] if "@" in email else []
+
+
+def send_newsletter_to_all(html_content, recipients, subject="🚀 Haftalık Yapay Zekâ & Teknoloji Radarı"):
     """Bülteni her aboneye kendi kişisel iptal bağlantısıyla postalar.
 
     Gönderilemeyen adreslerin listesini döndürür.
@@ -543,7 +553,7 @@ def send_newsletter_to_all(html_content, recipients):
                 personalized_html = html_content.replace("</body>", f"{footer_html}</body>")
 
                 msg = MIMEMultipart("alternative")
-                msg["Subject"] = "🚀 Haftalık Yapay Zekâ & Teknoloji Radarı"
+                msg["Subject"] = subject
                 msg["From"] = formataddr(("🤖 AI & Teknoloji Radarı", EMAIL_SENDER))
                 msg["To"] = email
 
@@ -603,8 +613,14 @@ def main():
         print(f"[HATA] {e}. E-posta gönderilmedi.")
         sys.exit(1)
 
-    recipients = get_subscribers()
-    failed = send_newsletter_to_all(newsletter_html, recipients)
+    if PREVIEW:
+        with open(PREVIEW_FILE, "w", encoding="utf-8") as f:
+            f.write(newsletter_html)
+        print(f"ÖNİZLEME: Bülten {PREVIEW_FILE} dosyasına kaydedildi; abonelere gönderilmeyecek.")
+        failed = send_newsletter_to_all(newsletter_html, get_preview_recipients(),
+                                        subject="[ÖNİZLEME] 🚀 Haftalık Yapay Zekâ & Teknoloji Radarı")
+    else:
+        failed = send_newsletter_to_all(newsletter_html, get_subscribers())
     if failed is None or failed:
         sys.exit(1)
 
