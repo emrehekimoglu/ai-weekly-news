@@ -24,7 +24,7 @@ jobs:
   build-and-send:
     runs-on: ubuntu-latest
     permissions:
-      # Arşiv sayfalarını gh-pages dalına yazmak için
+      # data/history.json kaydını main'e, arşiv sayfalarını gh-pages dalına commit etmek için
       contents: write
 
     steps:
@@ -65,8 +65,20 @@ jobs:
           path: newsletter.html
           if-no-files-found: ignore
 
+      - name: Sayı Geçmişini Kaydet
+        # Sadece gerçek gönderimlerde; önizleme ve dry_run geçmişi değiştirmez
+        if: always() && !inputs.preview && !inputs.dry_run
+        run: |
+          if [ -n "$(git status --porcelain data/history.json)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+            git add data/history.json
+            git commit -m "Bülten geçmişini güncelle ($(date -u +%F))"
+            git push
+          fi
+
       # Sadece abonelere gerçekten gönderilen sayılar arşive girer:
-      # main.py issue.html dosyasını önizleme ve dry_run'da yazmaz.
+      # newsletter/app.py issue.html dosyasını önizleme ve dry_run'da yazmaz.
       - name: Web Arşivine Ekle (GitHub Pages)
         if: always() && !inputs.dry_run && !inputs.preview && hashFiles('issue.html') != ''
         run: |
