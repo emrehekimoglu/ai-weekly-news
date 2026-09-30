@@ -1,0 +1,16 @@
+AI & TEKNOLOJİ RADARI
+Haftalık Kürasyon • Yeni Modeller, Makaleler, Açık Kaynak ve Gelişmeler
+
+Haftanın Özeti: {{ digest.intro }}
+{% for entry in digest.entries %}
+
+{{ loop.index }}. {{ entry.title }}
+📅 {{ entry.item.date }} • {{ entry.category }}
+{{ entry.summary }}
+Kaynağa Git → {{ entry.item.link }}
+{% endfor %}
+
+---
+Bu bülteni AI & Teknoloji Radarı'na abone olduğunuz için alıyorsunuz.
+{% if unsubscribe_url %}Abonelikten ayrılmak için: {{ unsubscribe_url }}
+{% endif %}

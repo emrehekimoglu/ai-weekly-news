@@ -3,7 +3,7 @@
 import pytest
 
 from newsletter import app, config, llm, mailer, subscribers
-from tests.conftest import make_item
+from tests.conftest import make_digest, make_item
 
 
 @pytest.fixture
@@ -11,12 +11,12 @@ def preview_run(set_config, fake_sources, monkeypatch, tmp_path):
     fake_sources([make_item()])
     set_config(DRY_RUN=False, PREVIEW=True, PREVIEW_FILE=str(tmp_path / "newsletter.html"))
     monkeypatch.setattr(config, "check_config", lambda: [])
-    monkeypatch.setattr(llm, "generate_digest", lambda items: "<body>bülten</body>")
+    monkeypatch.setattr(llm, "generate_digest", lambda items: make_digest())
     monkeypatch.setattr(subscribers, "get_subscribers", lambda: pytest.fail("önizlemede abone listesi okunmamalı"))
 
     sent = []
     monkeypatch.setattr(mailer, "send_all",
-                        lambda html, recipients, subject=None: sent.append((recipients, subject)) or [])
+                        lambda digest, recipients, subject=None: sent.append((recipients, subject)) or [])
     return sent
 
 
@@ -42,14 +42,15 @@ def test_preview_sends_only_to_owner_and_saves_html(set_config, preview_run):
     assert recipients == [{"email": "me@example.com", "token": ""}]
     assert subject == f"[ÖNİZLEME] {mailer.newsletter_subject()}"
     with open(config.PREVIEW_FILE, encoding="utf-8") as f:
-        assert f.read() == "<body>bülten</body>"
+        html = f.read()
+    assert "Haber 1" in html and 'href="https://example.com/5"' in html
 
 
 def test_preview_without_owner_address_fails(set_config, fake_sources, monkeypatch, tmp_path):
     fake_sources([make_item()])
     set_config(DRY_RUN=False, PREVIEW=True, PREVIEW_EMAIL=None, EMAIL_RECEIVER=None,
                PREVIEW_FILE=str(tmp_path / "newsletter.html"))
-    monkeypatch.setattr(llm, "generate_digest", lambda items: "<body></body>")
+    monkeypatch.setattr(llm, "generate_digest", lambda items: make_digest())
     monkeypatch.setattr(subscribers, "get_subscribers", lambda: pytest.fail("abone listesi okundu"))
     with pytest.raises(SystemExit):
         app.main()
