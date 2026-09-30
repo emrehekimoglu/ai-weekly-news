@@ -1,11 +1,26 @@
-AI & TEKNOLOJİ RADARI
-Haftalık Kürasyon • Yeni Modeller, Makaleler, Açık Kaynak ve Gelişmeler
+AI & TEKNOLOJİ RADARI • {{ digest.date }}
 
-Haftanın Özeti: {{ digest.intro }}
+{% if digest.headline %}
+{{ digest.headline | upper }}
+
+{% endif %}
+{{ digest.intro }}
+{% if digest.tldr %}
+
+30 SANİYEDE BU HAFTA
+{% for point in digest.tldr %}
+→ {{ point }}
+{% endfor %}
+{% endif %}
+{% if digest.stat %}
+
+HAFTANIN RAKAMI: {{ digest.stat.value }}
+{{ digest.stat.label }}
+{% endif %}
 {% for entry in digest.entries %}
 
 {{ loop.index }}. {{ entry.title }}
-📅 {{ entry.item.date }} • {{ entry.category }}
+{{ entry.category }} • {{ entry.item.source }} • {{ entry.item.date }}
 {{ entry.summary }}
 Kaynağa Git → {{ entry.item.link }}
 {% endfor %}
