@@ -6,7 +6,8 @@ Everything lives in one script, [`main.py`](main.py).
 
 ## How it works
 
-1. **Collect.** `main.py` pulls candidate items from six sources (below). Each item carries a source, title, date (converted to Turkish, e.g. `28 Eylül 2026`), link and short summary. A source that fails is logged and skipped, so one broken feed does not stop the run.
+0. **Check settings.** Before anything is collected, `check_config` makes sure the required secrets are present (see [Secrets](#secrets)). If something is missing, each problem is printed as a GitHub Actions error and the run stops at once, before any source is fetched or the LLM is called. `dry_run` runs skip this check.
+1. **Collect.** `main.py` pulls candidate items from six sources (below). Each item carries a source, title, date (converted to Turkish, e.g. `28 Eylül 2026`), link and short summary. A source that fails is logged and skipped, so one broken feed does not stop the run. Every HTTP request has a timeout; RSS and Atom feeds (arXiv, The Verge, Ars Technica) are fetched with a 15-second limit via `fetch_feed`.
 2. **Write.** All items go to an LLM in a single prompt. The model chooses the week's most important developments, prioritising new model launches, then viral, safety or scandal stories, then research and open source, and returns a complete HTML newsletter (header, a two-sentence summary, one card per item).
 3. **Check.** The HTML is validated before anything is sent (see [LLM step](#llm-step)). If the model fails three times, the run stops with an error and no email goes out.
 4. **Send.** The newsletter is emailed to each active subscriber through Gmail, with a personal unsubscribe link added to the footer.
@@ -42,6 +43,8 @@ Safeguards in `generate_digest_with_opencode` and `validate_digest_html`:
 2. **`subscribers.txt`** in the working directory, one email per line (lines starting with `#` are ignored). Used only if the sheet is not configured or has no active subscribers.
 3. **`EMAIL_RECEIVER`** as a single recipient, if neither of the above gives anyone.
 
+If the sheet is configured but cannot be read, or has no `AKTIF` rows, the newsletter still goes to the fallback recipients (2 or 3), but a GitHub Actions error is printed and the run ends with status 1, so a broken sheet never goes unnoticed.
+
 **Sending** uses Gmail SMTP over SSL (`smtp.gmail.com:465`), logging in as `EMAIL_SENDER` with `EMAIL_PASSWORD`. Each subscriber gets their own copy, built by `build_message`:
 
 - **Subject** ends with the send date, e.g. `🚀 Haftalık Yapay Zekâ & Teknoloji Radarı • 28 Eylül 2026`, so Gmail shows each week as its own conversation instead of grouping them.
@@ -67,6 +70,8 @@ The workflow is [`.github/workflows/newsletter.yml`](.github/workflows/newslette
 
 Set these under *Settings → Secrets and variables → Actions*. The workflow passes them to `main.py` as environment variables of the same name.
 
+At startup (except in `dry_run`) the run stops with a clear error if any "Yes" secret is missing, if only one of `GCP_SA_KEY` and `SPREADSHEET_ID` is set, if `GCP_SA_KEY` is not valid JSON, or if there is no recipient at all (the sheet, `subscribers.txt` or `EMAIL_RECEIVER`; for `preview` runs, `PREVIEW_EMAIL` or `EMAIL_RECEIVER`).
+
 | Secret | Required | Used for |
 |--------|----------|----------|
 | `OPENCODE_API_KEY` | Yes | OpenCode Go API key for the LLM |
@@ -84,7 +89,7 @@ Set these under *Settings → Secrets and variables → Actions*. The workflow p
 
 ## Running locally
 
-Requires Python 3.11.
+Requires Python 3.11. Dependency versions are pinned in `requirements.txt` and `requirements-dev.txt`; bump them there deliberately.
 
 ```bash
 python -m venv .venv
@@ -118,7 +123,7 @@ python main.py
 2. `python -m py_compile main.py` and `python -c "import main"`
 3. `pytest -q`
 
-The tests in [`tests/`](tests) use no network: they cover date parsing and HTML validation, the Reddit RSS fallback (with a fake `requests.get`), send-failure reporting (with a fake SMTP server), preview mode, and the email format (subject, plain-text part and unsubscribe header).
+The tests in [`tests/`](tests) use no network: they cover date parsing and HTML validation, the Reddit RSS fallback (with a fake `requests.get`), send-failure reporting (with a fake SMTP server), preview mode, the email format (subject, plain-text part and unsubscribe header), and the startup settings check, loud Sheets fallback and feed timeouts.
 
 To run the same checks locally:
 

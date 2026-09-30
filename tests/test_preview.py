@@ -13,6 +13,7 @@ def preview_run(monkeypatch, tmp_path):
         monkeypatch.setattr(main, name, lambda: [item])
     monkeypatch.setattr(main, "DRY_RUN", False)
     monkeypatch.setattr(main, "PREVIEW", True)
+    monkeypatch.setattr(main, "check_config", lambda: [])
     monkeypatch.setattr(main, "generate_digest_with_opencode", lambda raw: "<body>bülten</body>")
     monkeypatch.setattr(main, "PREVIEW_FILE", str(tmp_path / "newsletter.html"))
 

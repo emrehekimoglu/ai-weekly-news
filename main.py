@@ -52,6 +52,40 @@ PREVIEW = os.environ.get("PREVIEW", "").lower() == "true"
 PREVIEW_EMAIL = os.environ.get("PREVIEW_EMAIL")
 PREVIEW_FILE = "newsletter.html"
 
+# feedparser.parse(url) zaman aşımı desteklemez; RSS/Atom akışları requests ile bu sürede çekilir
+FEED_TIMEOUT_SECONDS = 15
+# Sheets yapılandırılmışken okunamazsa yedek alıcılara gönderilir ama çalışma hata ile biter
+SHEETS_ERROR = None
+
+
+def check_config():
+    """Gönderim için gereken ayarları kontrol eder, eksik/hatalı olanların açıklamalarını döndürür."""
+    problems = [f"{name} tanımlı değil" for name, value in [
+        ("OPENCODE_API_KEY", OPENCODE_API_KEY),
+        ("EMAIL_SENDER", EMAIL_SENDER),
+        ("EMAIL_PASSWORD", EMAIL_PASSWORD),
+    ] if not value]
+    if bool(GCP_SA_KEY) != bool(SPREADSHEET_ID):
+        problems.append("GCP_SA_KEY ve SPREADSHEET_ID birlikte tanımlanmalı")
+    if GCP_SA_KEY:
+        try:
+            json.loads(GCP_SA_KEY)
+        except ValueError:
+            problems.append("GCP_SA_KEY geçerli bir JSON değil")
+    if PREVIEW:
+        if not get_preview_recipients():
+            problems.append("Önizleme alıcısı yok (PREVIEW_EMAIL veya EMAIL_RECEIVER)")
+    elif not (GCP_SA_KEY and SPREADSHEET_ID) and not EMAIL_RECEIVER and not os.path.exists("subscribers.txt"):
+        problems.append("Alıcı kaynağı yok (GCP_SA_KEY + SPREADSHEET_ID, EMAIL_RECEIVER veya subscribers.txt)")
+    return problems
+
+
+def fetch_feed(url, headers=None):
+    """RSS/Atom akışını zaman aşımıyla çeker ve feedparser ile ayrıştırır."""
+    res = requests.get(url, headers=headers, timeout=FEED_TIMEOUT_SECONDS)
+    res.raise_for_status()
+    return feedparser.parse(res.content)
+
 
 # ==========================================
 # YARDIMCI: TARİH DÖNÜŞTÜRÜCÜ (TÜRKÇE)
@@ -85,7 +119,11 @@ def fetch_arxiv_papers():
     """1. arXiv Resmi Atom API: En güncel AI ve Makine Öğrenimi makaleleri."""
     print("1/6 - arXiv makaleleri taranıyor...")
     url = "https://export.arxiv.org/api/query?search_query=cat:cs.AI+OR+cat:cs.LG&sortBy=submittedDate&sortOrder=descending&max_results=8"
-    feed = feedparser.parse(url)
+    try:
+        feed = fetch_feed(url)
+    except Exception as e:
+        print(f"arXiv çekilirken hata: {e}")
+        return []
     items = []
     
     for entry in feed.entries:
@@ -324,7 +362,7 @@ def fetch_tech_media_ai():
     items = []
     for f in feeds:
         try:
-            feed = feedparser.parse(f["url"])
+            feed = fetch_feed(f["url"])
             for entry in feed.entries[:4]:
                 parsed_time = entry.get("published_parsed", entry.get("updated_parsed"))
                 tr_date = parse_to_turkish_date(parsed_time)
@@ -335,7 +373,8 @@ def fetch_tech_media_ai():
                     "link": entry.link,
                     "summary": entry.get("summary", "")[:350].replace("\n", " ").strip()
                 })
-        except Exception:
+        except Exception as e:
+            print(f"{f['name']} beslemesinde atlama: {e}")
             continue
     return items
 
@@ -345,6 +384,7 @@ def fetch_tech_media_ai():
 # ==========================================
 def get_subscribers():
     """Google Sheets üzerinden durumu 'AKTIF' olan kişileri tekilleştirerek çeker."""
+    global SHEETS_ERROR
     if HAS_GSPREAD and GCP_SA_KEY and SPREADSHEET_ID:
         try:
             print("Google Sheets tablosuna bağlanılıyor...")
@@ -376,11 +416,13 @@ def get_subscribers():
             if active_subscribers:
                 print(f"✓ Toplam {len(active_subscribers)} TEKİL aktif abone bulundu.")
                 return active_subscribers
-            else:
-                print("[UYARI] Tabloda 'AKTIF' statüsünde abone bulunamadı!")
+            SHEETS_ERROR = "Tabloda 'AKTIF' statüsünde abone bulunamadı"
 
         except Exception as e:
-            print(f"[HATA] Google Sheets okunurken hata: {e}")
+            SHEETS_ERROR = f"Google Sheets okunamadı: {e}"
+
+    if SHEETS_ERROR:
+        print(f"::error::{SHEETS_ERROR}. Bülten yalnızca yedek alıcılara gidecek ve çalışma hata ile bitecek.")
 
     # subscribers.txt kontrolü
     if os.path.exists("subscribers.txt"):
@@ -639,6 +681,14 @@ def send_newsletter_to_all(html_content, recipients, subject=None):
 # 6. ANA YÜRÜTME DÖNGÜSÜ
 # ==========================================
 def main():
+    if not DRY_RUN:
+        problems = check_config()
+        if problems:
+            for p in problems:
+                print(f"::error::{p}")
+            print("[HATA] Eksik ayarlar yüzünden çalışma durduruldu; veri toplanmadı, e-posta gönderilmedi.")
+            sys.exit(1)
+
     # 6 ana kaynaktan veri topla
     arxiv_data = fetch_arxiv_papers()
     hn_data = fetch_hacker_news_ai()
@@ -680,7 +730,7 @@ def main():
                                         subject=f"[ÖNİZLEME] {newsletter_subject()}")
     else:
         failed = send_newsletter_to_all(newsletter_html, get_subscribers())
-    if failed is None or failed:
+    if failed is None or failed or SHEETS_ERROR:
         sys.exit(1)
 
 
