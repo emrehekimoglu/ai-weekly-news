@@ -27,7 +27,7 @@ GÖREVİN:
 Bu verileri titizlikle filtreleyerek haftanın EN ÖNEMLİ 10 gelişmesini seç.
 (Eğer bu hafta gerçekten kaçırılmaması gereken çok kritik gelişmeler olduysa en fazla 12'ye kadar esneyebilirsin; yani toplam 10 ila 12 madde seç).
 Aynı olayı anlatan birden fazla kayıt varsa sadece en iyi kaynağı seç.
-
+{previous}
 İÇERİK SEÇİMİNDE ÖNCELİK SIRAN (ÇOK ÖNEMLİ):
 1. YENİ MODEL LANSMANLARI: Yeni bir GPT, Claude, Gemini, Grok, Llama veya güçlü açık kaynak model duyurulduysa MUTLAKA İLK SIRALARDA YER VER.
 2. VİRAL / SKANDAL / GÜVENLİK OLAYLARI: Modellerin beklenmedik/çıldıran davranışları, güvenlik filtrelerinin çökmesi (jailbreak), sansür tartışmaları veya büyük şirket krizleri varsa MUTLAKA BÜLTENE DAHİL ET.
@@ -49,9 +49,16 @@ Sadece aşağıdaki yapıda geçerli bir JSON nesnesi döndür; HTML, markdown v
 """
 
 
-def build_prompt(items):
+PREVIOUS = """
+Aşağıdaki konular son sayılarda zaten işlendi. Aynı olayı TEKRAR SEÇME; ancak önemli yeni bir gelişme varsa (örneğin duyurulan modelin yayınlanması) seçebilirsin:
+{titles}
+"""
+
+
+def build_prompt(items, previous_titles=()):
     raw_data = "\n".join(item.to_prompt(idx) for idx, item in enumerate(items, 1))
-    return PROMPT.format(raw_data=raw_data, categories=" / ".join(CATEGORIES))
+    previous = PREVIOUS.format(titles="\n".join(f"- {t}" for t in previous_titles)) if previous_titles else ""
+    return PROMPT.format(raw_data=raw_data, categories=" / ".join(CATEGORIES), previous=previous)
 
 
 def _client():
@@ -62,13 +69,13 @@ def _client():
     )
 
 
-def generate_digest(items):
+def generate_digest(items, previous_titles=()):
     """Modelden haftanın seçkisini JSON olarak alır; geçerli yanıt gelene kadar birkaç kez dener."""
     log.info("OpenCode Go üzerinden bülten hazırlanıyor...")
     client = _client()
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": build_prompt(items)},
+        {"role": "user", "content": build_prompt(items, previous_titles)},
     ]
 
     last_error = None
