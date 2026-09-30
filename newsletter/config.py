@@ -30,6 +30,9 @@ DRY_RUN = os.environ.get("DRY_RUN", "").lower() == "true"
 PREVIEW = os.environ.get("PREVIEW", "").lower() == "true"
 PREVIEW_EMAIL = os.environ.get("PREVIEW_EMAIL")
 PREVIEW_FILE = "newsletter.html"
+# Abonelere gönderilen bülten (kişisel iptal bağlantısı olmadan); iş akışı bunu
+# GitHub Pages arşivine ekler (archive.py). Önizleme ve DRY_RUN bu dosyayı yazmaz.
+ARCHIVE_FILE = "issue.html"
 
 SUBSCRIBERS_FILE = "subscribers.txt"
 

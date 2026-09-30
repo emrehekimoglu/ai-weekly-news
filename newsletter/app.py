@@ -69,5 +69,8 @@ def main():
         failed = mailer.send_all(digest, recipients)
         if failed is not None and len(failed) < len(recipients):
             history.record(digest, datetime.now(timezone.utc).strftime("%Y-%m-%d"))
+            # Web arşivi için ortak (kişisel iptal bağlantısı olmayan) sürüm
+            with open(config.ARCHIVE_FILE, "w", encoding="utf-8") as f:
+                f.write(render_html(digest))
     if failed is None or failed or sheets_error:
         sys.exit(1)
