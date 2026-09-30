@@ -34,6 +34,12 @@ SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID")
 WEB_APP_URL = os.environ.get("WEB_APP_URL", "")
 MODEL_NAME = os.environ.get("OPENCODE_MODEL", "deepseek-v4.1-flash")
 
+# Opsiyonel: Reddit uygulama kimlik bilgileri (yoksa top.json -> RSS denenir)
+REDDIT_CLIENT_ID = os.environ.get("REDDIT_CLIENT_ID")
+REDDIT_CLIENT_SECRET = os.environ.get("REDDIT_CLIENT_SECRET")
+# "true" ise sadece veri toplanır; model çağrılmaz, e-posta gönderilmez
+DRY_RUN = os.environ.get("DRY_RUN", "").lower() == "true"
+
 
 # ==========================================
 # YARDIMCI: TARİH DÖNÜŞTÜRÜCÜ (TÜRKÇE)
@@ -177,20 +183,89 @@ def fetch_company_blogs():
     return items
 
 
+REDDIT_USER_AGENT = "python:ai-weekly-news:v1.1 (by /u/emrehekimoglu)"
+
+
+def _reddit_oauth_token():
+    """REDDIT_CLIENT_ID/SECRET tanımlıysa uygulama (app-only) OAuth token'ı alır."""
+    if not (REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET):
+        return None
+    try:
+        res = requests.post(
+            "https://www.reddit.com/api/v1/access_token",
+            auth=(REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET),
+            data={"grant_type": "client_credentials"},
+            headers={"User-Agent": REDDIT_USER_AGENT},
+            timeout=8,
+        )
+        res.raise_for_status()
+        return res.json().get("access_token")
+    except Exception as e:
+        print(f"Reddit OAuth token alınamadı: {e}")
+        return None
+
+
+def _reddit_posts_json(sub, token):
+    """top.json listesini çeker; JSON dönmezse (IP engeli vb.) None döner."""
+    headers = {"User-Agent": REDDIT_USER_AGENT}
+    if token:
+        url = f"https://oauth.reddit.com/r/{sub}/top?t=week&limit=6&raw_json=1"
+        headers["Authorization"] = f"Bearer {token}"
+    else:
+        url = f"https://www.reddit.com/r/{sub}/top.json?t=week&limit=6&raw_json=1"
+    res = requests.get(url, headers=headers, timeout=8)
+    if res.status_code != 200 or "json" not in res.headers.get("Content-Type", ""):
+        print(f"Reddit r/{sub} JSON erişimi reddedildi (HTTP {res.status_code}, {res.headers.get('Content-Type', '?')})")
+        return None
+    return [p.get("data", {}) for p in res.json().get("data", {}).get("children", [])]
+
+
+def _reddit_items_rss(sub):
+    """JSON engellendiğinde haftalık top RSS akışına düşer (upvote bilgisi yok, sıralama zaten skora göre)."""
+    res = requests.get(
+        f"https://www.reddit.com/r/{sub}/top/.rss?t=week&limit=5",
+        headers={"User-Agent": REDDIT_USER_AGENT},
+        timeout=8,
+    )
+    if res.status_code != 200:
+        print(f"Reddit r/{sub} RSS erişimi reddedildi (HTTP {res.status_code})")
+        return []
+    feed = feedparser.parse(res.content)
+    items = []
+    for entry in feed.entries[:5]:
+        content = entry.get("content", [{}])[0].get("value", "") or entry.get("summary", "")
+        text = re.sub(r"<[^>]+>", " ", content).replace("submitted by", "")
+        text = re.sub(r"\s+", " ", text).strip()[:300]
+        items.append({
+            "source": f"Reddit r/{sub}",
+            "title": entry.title,
+            "date": parse_to_turkish_date(entry.get("updated_parsed", entry.get("published_parsed"))),
+            "link": entry.link,
+            "summary": f"[Haftanın En Çok Oylanan Paylaşımı] {text}"
+        })
+    return items
+
+
 def fetch_reddit_viral_ai():
-    """5. Reddit Toplulukları: r/ChatGPT, r/singularity ve r/LocalLLaMA viral olayları, jailbreak ve skandallar."""
+    """5. Reddit Toplulukları: r/ChatGPT, r/singularity ve r/LocalLLaMA viral olayları, jailbreak ve skandallar.
+
+    Reddit, GitHub Actions gibi veri merkezi IP'lerinden gelen kimliksiz .json isteklerini
+    HTML engel sayfasıyla yanıtlıyor. Sıra: OAuth (secret varsa) -> top.json -> RSS.
+    """
     print("5/6 - Reddit viral AI olayları ve tartışmaları taranıyor...")
     subreddits = ["ChatGPT", "singularity", "LocalLLaMA"]
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+    token = _reddit_oauth_token()
     items = []
     
     for sub in subreddits:
         try:
-            url = f"https://www.reddit.com/r/{sub}/top.json?t=week&limit=6"
-            res = requests.get(url, headers=headers, timeout=8).json()
-            posts = res.get("data", {}).get("children", [])
-            for post in posts:
-                pdata = post.get("data", {})
+            posts = _reddit_posts_json(sub, token)
+            if posts is None:
+                rss_items = _reddit_items_rss(sub)
+                print(f"Reddit r/{sub}: RSS üzerinden {len(rss_items)} içerik alındı.")
+                items.extend(rss_items)
+                continue
+            for pdata in posts:
                 # Sadece toplulukta yüksek ilgi (300+ upvote) görmüş içerikler
                 if pdata.get("score", 0) > 300:
                     created_utc = pdata.get("created_utc", 0)
@@ -208,6 +283,7 @@ def fetch_reddit_viral_ai():
         except Exception as e:
             print(f"Reddit r/{sub} taranırken hata: {e}")
             continue
+    print(f"Reddit toplam {len(items)} içerik.")
     return items
 
 
@@ -433,6 +509,12 @@ def main():
 
     if not all_data:
         print("Hiçbir kaynaktan veri toplanamadı!")
+        return
+
+    if DRY_RUN:
+        print(f"DRY_RUN: Toplam {len(all_data)} içerik toplandı (Reddit: {len(reddit_data)}). Model ve e-posta atlandı.")
+        for item in reddit_data:
+            print(f"  - [{item['source']}] {item['title']}")
         return
 
     print(f"Toplam {len(all_data)} adet aday içerik toplandı. Modele aktarılıyor...")
