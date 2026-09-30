@@ -222,11 +222,15 @@ def _reddit_posts_json(sub, token):
 
 def _reddit_items_rss(sub):
     """JSON engellendiğinde haftalık top RSS akışına düşer (upvote bilgisi yok, sıralama zaten skora göre)."""
-    res = requests.get(
-        f"https://www.reddit.com/r/{sub}/top/.rss?t=week&limit=5",
-        headers={"User-Agent": REDDIT_USER_AGENT},
-        timeout=8,
-    )
+    url = f"https://www.reddit.com/r/{sub}/top/.rss?t=week&limit=5"
+    res = requests.get(url, headers={"User-Agent": REDDIT_USER_AGENT}, timeout=8)
+    if res.status_code == 429:
+        # Kimliksiz istekler sıkı hız sınırına takılıyor; bir kez bekleyip tekrar dene
+        retry_after = res.headers.get("Retry-After", "")
+        wait = min(int(retry_after), 30) if retry_after.isdigit() else 10
+        print(f"Reddit r/{sub} RSS hız sınırı (HTTP 429), {wait} sn beklenip tekrar deneniyor...")
+        time.sleep(wait)
+        res = requests.get(url, headers={"User-Agent": REDDIT_USER_AGENT}, timeout=8)
     if res.status_code != 200:
         print(f"Reddit r/{sub} RSS erişimi reddedildi (HTTP {res.status_code})")
         return []
@@ -255,12 +259,17 @@ def fetch_reddit_viral_ai():
     print("5/6 - Reddit viral AI olayları ve tartışmaları taranıyor...")
     subreddits = ["ChatGPT", "singularity", "LocalLLaMA"]
     token = _reddit_oauth_token()
+    json_blocked = False
     items = []
     
-    for sub in subreddits:
+    for i, sub in enumerate(subreddits):
         try:
-            posts = _reddit_posts_json(sub, token)
+            if i > 0:
+                time.sleep(3)  # Reddit hız sınırına takılmamak için istekler arası bekleme
+            # JSON bir kez engellendiyse aynı IP için tekrar denemeyip doğrudan RSS'e geç
+            posts = None if json_blocked else _reddit_posts_json(sub, token)
             if posts is None:
+                json_blocked = True
                 rss_items = _reddit_items_rss(sub)
                 print(f"Reddit r/{sub}: RSS üzerinden {len(rss_items)} içerik alındı.")
                 items.extend(rss_items)
