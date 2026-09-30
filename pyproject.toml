@@ -1,0 +1,11 @@
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+
+[tool.ruff.lint]
+# Varsayılan kurallar: sözdizimi hataları, tanımsız isimler, kullanılmayan importlar vb.
+select = ["E4", "E7", "E9", "F"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

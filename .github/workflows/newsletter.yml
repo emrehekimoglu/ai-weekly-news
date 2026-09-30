@@ -5,6 +5,11 @@ on:
     # Her Pazartesi saat 06:00 UTC (TSİ 09:00)
     - cron: '0 6 * * 1'
   workflow_dispatch: # Manuel test butonu
+    inputs:
+      dry_run:
+        description: 'Sadece veri topla (model ve e-posta atlanır)'
+        type: boolean
+        default: false
 
 jobs:
   build-and-send:
@@ -33,4 +38,7 @@ jobs:
           WEB_APP_URL: ${{ secrets.WEB_APP_URL }}
           GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
           SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
+          REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+          REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+          DRY_RUN: ${{ inputs.dry_run }}
         run: python main.py
