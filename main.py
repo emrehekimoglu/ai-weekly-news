@@ -90,7 +90,7 @@ Bunu bir e-posta bülteni olarak, modern, temiz ve profesyonel bir HTML formatı
     # OpenCode Go'da yer alan popüler modellerden birini seçebilirsiniz:
     # örn: "qwen3.5-plus", "deepseek-v4-pro" veya "kimi-k2.7-code"
     response = client.chat.completions.create(
-        model="qwen3.5-plus",
+        model="qwen3.8-max",
         temperature=0.3,
         messages=[
             {"role": "system", "content": "Sen profesyonel bir teknoloji bülteni editörüsün."},
