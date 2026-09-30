@@ -2,6 +2,8 @@ import os
 import uuid
 import json
 import time
+import re
+from datetime import datetime
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -11,7 +13,6 @@ import requests
 import feedparser
 from openai import OpenAI
 
-# Google Sheets entegrasyonu için (isteğe bağlı/kurulduysa çalışır)
 try:
     import gspread
     from google.oauth2.service_account import Credentials
@@ -21,26 +22,23 @@ except ImportError:
 
 
 # ==========================================
-# 1. ORTAM DEĞİŞKENLERİ (GitHub Secrets)
+# 1. ORTAM DEĞİŞKENLERİ
 # ==========================================
 OPENCODE_API_KEY = os.environ.get("OPENCODE_API_KEY")
 EMAIL_SENDER = os.environ.get("EMAIL_SENDER")
 EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD")
-EMAIL_RECEIVER = os.environ.get("EMAIL_RECEIVER")  # Yedek / varsayılan alıcı
+EMAIL_RECEIVER = os.environ.get("EMAIL_RECEIVER")
 
-# Google Sheets anahtarları (Form bağlandıysa kullanılır)
 GCP_SA_KEY = os.environ.get("GCP_SA_KEY")
 SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID")
-
-# Kullanılacak model (OpenCode Go üzerindeki en iyi Türkçe ve akıl yürütme modeli)
 MODEL_NAME = os.environ.get("OPENCODE_MODEL", "qwen3.8-max")
 
 
 # ==========================================
-# 2. VERİ TOPLAMA FONKSİYONLARI
+# 2. VERİ TOPLAMA (TARİHLERLE BİRLİKTE)
 # ==========================================
 def fetch_arxiv_papers():
-    """arXiv cs.AI (Yapay Zeka) ve cs.LG (Makine Öğrenimi) son makalelerini çeker."""
+    """arXiv makalelerini başlık, özet ve yayın tarihiyle çeker."""
     print("arXiv makaleleri toplanıyor...")
     urls = [
         "https://export.arxiv.org/rss/cs.AI",
@@ -50,26 +48,35 @@ def fetch_arxiv_papers():
     for url in urls:
         feed = feedparser.parse(url)
         for entry in feed.entries[:8]:
+            # Tarih bilgisini al
+            raw_date = entry.get("published", entry.get("updated", ""))
+            clean_date = raw_date[:10] if raw_date else datetime.now().strftime("%Y-%m-%d")
+            
             items.append({
                 "source": "arXiv",
-                "title": entry.title,
+                "title": entry.title.replace("\n", " ").strip(),
+                "date": clean_date,
                 "link": entry.link,
-                "summary": entry.summary[:400]
+                "summary": entry.summary[:400].replace("\n", " ").strip()
             })
     return items
 
 
 def fetch_hacker_news_ai():
-    """Hacker News üzerinde son günlerin çok oy alan AI haberlerini çeker."""
+    """Hacker News popüler AI haberlerini tarihiyle çeker."""
     print("Hacker News trendleri toplanıyor...")
     try:
         url = "https://hn.algolia.com/api/v1/search?query=AI%20LLM&tags=story&numericFilters=points>120"
         res = requests.get(url, timeout=10).json()
         items = []
         for hit in res.get("hits", [])[:8]:
+            created_at = hit.get("created_at", "")
+            clean_date = created_at[:10] if created_at else datetime.now().strftime("%Y-%m-%d")
+            
             items.append({
                 "source": "Hacker News",
                 "title": hit.get("title"),
+                "date": clean_date,
                 "link": hit.get("url") or f"https://news.ycombinator.com/item?id={hit.get('objectID')}",
                 "summary": f"Puan: {hit.get('points')}, Yorum: {hit.get('num_comments')}"
             })
@@ -80,72 +87,70 @@ def fetch_hacker_news_ai():
 
 
 # ==========================================
-# 3. ABONE LİSTESİNİ ALMA
+# 3. ABONE LİSTESİNİ ÇEKME (GELİŞMİŞ)
 # ==========================================
 def get_subscribers():
-    """
-    Abone listesini belirler:
-    1. Google Sheets bağlıysa oradaki form yanıtlarından çeker.
-    2. subscribers.txt dosyası varsa oradan okur.
-    3. Hiçbiri yoksa varsayılan olarak EMAIL_RECEIVER adresine gönderir.
-    """
-    # 1. Google Sheets Denemesi
+    """Google Sheets tablosunu tarayıp aboneleri tespit eder."""
+    # Kontrol logları (Sorun olursa doğrudan terminalde görünür)
+    if not HAS_GSPREAD:
+        print("[HATA] gspread kütüphanesi kurulu değil! requirements.txt dosyasını kontrol edin.")
+    if not GCP_SA_KEY:
+        print("[UYARI] GCP_SA_KEY ortam değişkeni boş! newsletter.yml dosyasındaki env: kısmını kontrol edin.")
+    if not SPREADSHEET_ID:
+        print("[UYARI] SPREADSHEET_ID ortam değişkeni boş! newsletter.yml dosyasındaki env: kısmını kontrol edin.")
+
     if HAS_GSPREAD and GCP_SA_KEY and SPREADSHEET_ID:
         try:
-            print("Google Sheets üzerinden abone listesi çekiliyor...")
+            print("Google Sheets tablosuna bağlanılıyor...")
             sa_creds = json.loads(GCP_SA_KEY)
             scopes = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
             creds = Credentials.from_service_account_info(sa_creds, scopes=scopes)
             gc = gspread.authorize(creds)
             
             sheet = gc.open_by_key(SPREADSHEET_ID).sheet1
-            records = sheet.get_all_values()
+            all_cells = sheet.get_all_values()
             
-            if len(records) > 1:
-                # E-posta sütununu akıllıca tespit et
-                header = [str(col).lower() for col in records[0]]
-                email_col_idx = 1  # Form yanıtlarında varsayılan 2. sütundur
-                for idx, col_name in enumerate(header):
-                    if "posta" in col_name or "email" in col_name or "mail" in col_name:
-                        email_col_idx = idx
-                        break
+            emails = []
+            email_pattern = re.compile(r"^[\w\.-]+@[\w\.-]+\.\w+$")
 
-                emails = []
-                for row in records[1:]:
-                    if len(row) > email_col_idx:
-                        email = row[email_col_idx].strip()
-                        if "@" in email and email not in emails:
-                            emails.append(email)
+            # İlk satır (başlıklar) hariç tüm hücreleri tara
+            for row in all_cells[1:]:
+                for cell in row:
+                    val = cell.strip()
+                    if email_pattern.match(val) and val not in emails:
+                        emails.append(val)
 
-                if emails:
-                    print(f"✓ Google Sheets'ten {len(emails)} abone alındı.")
-                    return emails
+            if emails:
+                print(f"✓ Başarılı: Google Sheets üzerinden {len(emails)} abone bulundu: {emails}")
+                return emails
+            else:
+                print("[UYARI] Tabloya bağlandı ancak içinde e-posta formatında veri bulunamadı!")
+
         except Exception as e:
-            print(f"Google Sheets okunurken hata oluştu: {e}")
+            print(f"[HATA] Google Sheets okunurken istisna oluştu: {e}")
 
-    # 2. Yerel subscribers.txt Denemesi
+    # subscribers.txt kontrolü
     if os.path.exists("subscribers.txt"):
-        print("subscribers.txt dosyasından aboneler okunuyor...")
+        print("subscribers.txt okunuyor...")
         emails = []
         with open("subscribers.txt", "r", encoding="utf-8") as f:
             for line in f:
-                email = line.strip()
-                if email and not email.startswith("#") and "@" in email:
-                    emails.append(email)
+                em = line.strip()
+                if "@" in em and not em.startswith("#") and em not in emails:
+                    emails.append(em)
         if emails:
             return emails
 
-    # 3. Yedek (Kişisel Alıcı)
-    print("Özel liste bulunamadı, varsayılan alıcı kullanılıyor.")
+    print("Özel listeden sonuç alınamadı. Varsayılan e-posta adresine gönderilecek.")
     return [EMAIL_RECEIVER] if EMAIL_RECEIVER else []
 
 
 # ==========================================
-# 4. OPENCODE GO İLE BÜLTEN ÜRETİMİ
+# 4. TARİHLİ BÜLTEN ÜRETİMİ
 # ==========================================
 def generate_digest_with_opencode(raw_data):
-    """OpenCode Go API'sini kullanarak HTML bülteni üretir."""
-    print("OpenCode Go üzerinden bülten hazırlanıyor...")
+    """HTML formatında tarihli bülten üretir."""
+    print("OpenCode Go üzerinden model bülteni hazırlıyor...")
 
     session_id = f"ses_{uuid.uuid4().hex}"
 
@@ -160,30 +165,29 @@ def generate_digest_with_opencode(raw_data):
 
     prompt = f"""
 Sen dünya standartlarında bir yapay zeka ve teknoloji baş editörüsün.
-Aşağıda son bir haftada yayımlanan ham teknoloji ve araştırma içerikleri yer alıyor:
+Aşağıda son bir haftada yayımlanan ham teknoloji ve araştırma içerikleri (tarihleriyle birlikte) yer alıyor:
 
 {raw_data}
 
 GÖREVİN:
 Bu verileri filtreleyerek gerçekten çığır açıcı, sektörde ses getirebilecek veya yeni bir paradigma başlatan EN ÖNEMLİ 5-7 gelişmeyi seç.
-Bunu bir e-posta bülteni olarak, modern, temiz ve profesyonel bir HTML formatında yaz.
+Bunu bir e-posta bülteni olarak modern, temiz ve profesyonel bir HTML formatında yaz.
 
 ŞABLON KURALLARI:
 1. Türkçe yaz.
-2. EN ÜSTE ŞIK BİR HEADER (BAŞLIK & LOGO) ALANI EKLE:
-   - Modern bir bülten başlığı oluştur:
-     - Yuvarlak bir yapay zekâ ikonu kullan: `<img src="https://cdn-icons-png.flaticon.com/512/4712/4712109.png" width="44" height="44" style="vertical-align: middle; margin-right: 12px; border-radius: 50%;">`
-     - İkonun yanına kalın, koyu renkli ve modern fontla "AI & TEKNOLOJİ RADARI" yaz.
-     - Altına küçük ve gri fontla "Haftalık Kürasyon • Yeni Modeller, Makaleler ve Gelişmeler" notunu ekle.
-     - Altına ince bir ayırıcı çizgi (`<hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">`) çek.
+2. EN ÜSTE ŞIK BİR HEADER ALANI EKLE:
+   - Yuvarlak yapay zekâ ikonu: `<img src="https://cdn-icons-png.flaticon.com/512/4712/4712109.png" width="44" height="44" style="vertical-align: middle; margin-right: 12px; border-radius: 50%;">`
+   - Yanına kalın harflerle "AI & TEKNOLOJİ RADARI" başlığı.
+   - Altına gri ve küçük puntolarla "Haftalık Kürasyon • Yeni Modeller, Makaleler ve Gelişmeler" yazısı.
+   - Altına ince bir ayırıcı çizgi (`<hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">`).
 3. Header'ın hemen altına 2 cümlelik samimi ve vizyoner bir "Haftanın Özeti" girişi yap.
 4. Seçilen her gelişme için temiz bir HTML kart tasarımı (`border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px; margin-bottom: 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #ffffff;`) kullan.
-5. Her kartta şunlar bulunsun:
-   - **Başlık**: Kalın ve belirgin (varsa ilgili model/teknoloji adı)
-   - **Kategori Etiketi**: Şık bir rozet (badge) gibi görünen renkli etiket (Yeni Model, Araştırma/Makale, Açık Kaynak, Endüstri)
+5. HER KARTTA ZORUNLU BULUNMASI GEREKENLER:
+   - **Başlık**: Kalın ve belirgin (varsa ilgili model/teknoloji adı).
+   - **Tarih & Kategori**: Başlığın hemen altında yan yana küçük gri rozetler halinde yer alsın. (Örn: `<span style="background: #f1f5f9; padding: 3px 8px; border-radius: 4px; font-size: 12px; color: #475569; margin-right: 8px;">📅 [Yayın/Duyuru Tarihi]</span> <span style="background: #e0f2fe; padding: 3px 8px; border-radius: 4px; font-size: 12px; color: #0369a1;">[Kategori: Yeni Model / Makale / Endüstri]</span>`)
    - **Özet**: 2-3 cümle ile ne yapıldığını ve teknik yeniliği açıkla.
    - **Neden Önemli?**: Sektöre ve geleceğe etkisini 1-2 cümleyle açıkla.
-   - **Kaynak Linki**: Doğrudan tıklanabilir bir buton veya link formatında kaynak URL'si (`<a href="..." style="color: #2563eb; text-decoration: none; font-weight: bold;">Kaynağa Git →</a>`).
+   - **Kaynak Butonu**: Tıklanabilir kaynak linki (`<a href="..." style="display: inline-block; margin-top: 8px; color: #2563eb; text-decoration: none; font-weight: bold; font-size: 13px;">Kaynağa Git →</a>`).
 6. Sadece geçerli `<html><body style="background-color: #f8fafc; padding: 20px; font-family: sans-serif;">...</body></html>` kodunu döndür, markdown tırnakları (```html) KULLANMA.
 """
 
@@ -197,8 +201,6 @@ Bunu bir e-posta bülteni olarak, modern, temiz ve profesyonel bir HTML formatı
     )
 
     content = response.choices[0].message.content.strip()
-    
-    # Model fazladan markdown blokları eklediyse temizle
     if content.startswith("```html"):
         content = content[7:]
     elif content.startswith("```"):
@@ -210,15 +212,15 @@ Bunu bir e-posta bülteni olarak, modern, temiz ve profesyonel bir HTML formatı
 
 
 # ==========================================
-# 5. E-POSTA DAĞITIM FONKSİYONU
+# 5. E-POSTA DAĞITIMI
 # ==========================================
 def send_newsletter_to_all(html_content, recipients):
-    """Bülteni tek bir SMTP oturumu üzerinden tüm abonelere tek tek gönderir."""
+    """Bülteni abonelere gönderir."""
     if not recipients:
         print("Gönderilecek alıcı bulunamadı!")
         return
 
-    print(f"Toplam {len(recipients)} aboneye e-posta gönderimi başlıyor...")
+    print(f"Toplam {len(recipients)} kişiye e-posta gönderimi başlıyor...")
 
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
         server.login(EMAIL_SENDER, EMAIL_PASSWORD)
@@ -228,28 +230,25 @@ def send_newsletter_to_all(html_content, recipients):
                 msg = MIMEMultipart("alternative")
                 msg["Subject"] = "🚀 Haftalık Yapay Zekâ & Teknoloji Radarı"
                 msg["From"] = formataddr(("🤖 AI & Teknoloji Radarı", EMAIL_SENDER))
-                msg["To"] = email  # Sadece alıcının kendi adresi görünür
+                msg["To"] = email
 
                 part = MIMEText(html_content, "html")
                 msg.attach(part)
 
                 server.sendmail(EMAIL_SENDER, email, msg.as_string())
-                print(f"✓ Gönderildi: {email}")
-                
-                # Gmail spam filtresine takılmamak için 1 saniye bekle
+                print(f"✓ Başarıyla gönderildi: {email}")
                 time.sleep(1)
 
             except Exception as e:
                 print(f"✗ Hata ({email}): {e}")
 
-    print("Tüm e-postalar başarıyla postalandı!")
+    print("Tüm gönderimler tamamlandı!")
 
 
 # ==========================================
-# 6. ANA YÜRÜTME DÖNGÜSÜ
+# 6. ANA DÖNGÜ
 # ==========================================
 def main():
-    # 1. Kaynaklardan veri topla
     arxiv_data = fetch_arxiv_papers()
     hn_data = fetch_hacker_news_ai()
     all_data = arxiv_data + hn_data
@@ -258,15 +257,11 @@ def main():
         print("Hiçbir veri toplanamadı!")
         return
 
-    # 2. Metin formatına çevir
     raw_text = ""
     for idx, item in enumerate(all_data, 1):
-        raw_text += f"[{idx}] Kaynak: {item['source']}\nBaşlık: {item['title']}\nLink: {item['link']}\nÖzet: {item['summary']}\n\n"
+        raw_text += f"[{idx}] Kaynak: {item['source']}\nBaşlık: {item['title']}\nTarih: {item['date']}\nLink: {item['link']}\nÖzet: {item['summary']}\n\n"
 
-    # 3. OpenCode Go modeline özetlet
     newsletter_html = generate_digest_with_opencode(raw_text)
-
-    # 4. Aboneleri belirle ve gönder
     recipients = get_subscribers()
     send_newsletter_to_all(newsletter_html, recipients)
 
