@@ -40,6 +40,25 @@ def test_failed_addresses_are_returned():
     assert mailer.send_all(make_digest(), recipients) == ["bad@example.com"]
 
 
+def test_log_never_shows_full_addresses(caplog):
+    recipients = [{"email": "ok@example.com"}, {"email": "bad@example.com"}]
+    with caplog.at_level("INFO"):
+        mailer.send_all(make_digest(), recipients)
+    assert "ok@example.com" not in caplog.text
+    assert "bad@example.com" not in caplog.text
+    assert "o***@example.com" in caplog.text
+    assert "b***@example.com" in caplog.text
+
+
+@pytest.mark.parametrize("email,masked", [
+    ("emre@gmail.com", "e***@gmail.com"),
+    ("a@b.com", "a***@b.com"),
+    ("not-an-email", "***"),
+])
+def test_mask_email(email, masked):
+    assert mailer.mask_email(email) == masked
+
+
 def test_no_recipients_returns_none():
     assert mailer.send_all(make_digest(), []) is None
 
