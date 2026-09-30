@@ -51,6 +51,8 @@ DRY_RUN = os.environ.get("DRY_RUN", "").lower() == "true"
 PREVIEW = os.environ.get("PREVIEW", "").lower() == "true"
 PREVIEW_EMAIL = os.environ.get("PREVIEW_EMAIL")
 PREVIEW_FILE = "newsletter.html"
+# Abonelere gönderilen bülten; iş akışı bunu GitHub Pages arşivine ekler (archive.py)
+ARCHIVE_FILE = "issue.html"
 
 # feedparser.parse(url) zaman aşımı desteklemez; RSS/Atom akışları requests ile bu sürede çekilir
 FEED_TIMEOUT_SECONDS = 15
@@ -730,6 +732,9 @@ def main():
                                         subject=f"[ÖNİZLEME] {newsletter_subject()}")
     else:
         failed = send_newsletter_to_all(newsletter_html, get_subscribers())
+        if failed is not None:
+            with open(ARCHIVE_FILE, "w", encoding="utf-8") as f:
+                f.write(newsletter_html)
     if failed is None or failed or SHEETS_ERROR:
         sys.exit(1)
 
