@@ -54,6 +54,7 @@ def test_main_exit_code(monkeypatch, recipients, should_fail):
                  "fetch_company_blogs", "fetch_reddit_viral_ai", "fetch_tech_media_ai"]:
         monkeypatch.setattr(main, name, lambda: [item])
     monkeypatch.setattr(main, "DRY_RUN", False)
+    monkeypatch.setattr(main, "check_config", lambda: [])
     monkeypatch.setattr(main, "generate_digest_with_opencode", lambda raw: "<body></body>")
     monkeypatch.setattr(main, "get_subscribers", lambda: recipients)
 
