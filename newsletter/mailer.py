@@ -24,6 +24,18 @@ def newsletter_subject(today=None):
     return f"🚀 Haftalık Yapay Zekâ & Teknoloji Radarı • {parse_to_turkish_date(today.strftime('%Y-%m-%d'))}"
 
 
+def mask_email(email):
+    """Loglar için adresi gizler: "emre@gmail.com" -> "e***@gmail.com"."""
+    local, sep, domain = email.partition("@")
+    return f"{local[:1]}***{sep}{domain}" if sep else "***"
+
+
+def _describe_error(e):
+    """Hata özeti; SMTP hataları alıcı adresini içerebildiği için metnini loga yazmaz."""
+    code = getattr(e, "smtp_code", None)
+    return f"{type(e).__name__} {code}" if code else type(e).__name__
+
+
 def unsubscribe_url(email, token):
     """Aboneye özel iptal bağlantısı; web uygulaması veya token yoksa None."""
     if not (config.WEB_APP_URL and token):
@@ -68,16 +80,16 @@ def send_all(digest, recipients, subject=None):
             email = sub["email"]
             try:
                 server.sendmail(config.EMAIL_SENDER, email, build_message(digest, sub, subject).as_string())
-                log.info("✓ Başarıyla gönderildi: %s", email)
+                log.info("✓ Başarıyla gönderildi: %s", mask_email(email))
                 time.sleep(1)
             except Exception as e:
-                log.error("✗ Hata (%s): %s", email, e)
+                log.error("✗ Hata (%s): %s", mask_email(email), _describe_error(e))
                 failed.append(email)
 
     sent = len(recipients) - len(failed)
     if failed:
         log.error("[HATA] %d/%d gönderim başarılı, %d başarısız: %s", sent, len(recipients), len(failed),
-                  ", ".join(failed))
+                  ", ".join(mask_email(f) for f in failed))
     else:
         log.info("Tüm gönderimler başarıyla tamamlandı! (%d/%d)", sent, len(recipients))
     return failed
