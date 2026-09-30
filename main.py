@@ -3,6 +3,7 @@ import uuid
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from email.utils import formataddr
 import feedparser
 from openai import OpenAI
 import requests
@@ -82,15 +83,21 @@ Bunu bir e-posta bülteni olarak, modern, temiz ve profesyonel bir HTML formatı
 
 ŞABLON KURALLARI:
 1. Türkçe yaz.
-2. Başlangıçta 2 cümlelik samimi ve vizyoner bir "Haftanın Özeti" girişi yap.
-3. Seçilen her gelişme için temiz bir HTML kart tasarımı (`border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px; margin-bottom: 20px; font-family: sans-serif;`) kullan.
-4. Her kartta şunlar bulunsun:
-   - **Başlık** (varsa ilgili model/teknoloji adı)
-   - **Kategori Etiketi**: (Yeni Model, Araştırma/Makale, Açık Kaynak, Endüstri)
+2. EN ÜSTE ŞIK BİR HEADER (BAŞLIK & LOGO) ALANI EKLE:
+   - Modern bir bülten başlığı oluştur:
+     - Yuvarlak bir yapay zekâ ikonu kullan: `<img src="https://cdn-icons-png.flaticon.com/512/4712/4712109.png" width="44" height="44" style="vertical-align: middle; margin-right: 12px; border-radius: 50%;">`
+     - İkonun yanına kalın, koyu renkli ve modern fontla "AI & TEKNOLOJİ RADARI" yaz.
+     - Altına küçük ve gri fontla "Haftalık Kürasyon • Yeni Modeller, Makaleler ve Gelişmeler" notunu ve güncel tarihi düş.
+     - Altına ince bir ayırıcı çizgi (`<hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">`) çek.
+3. Header'ın hemen altına 2 cümlelik samimi ve vizyoner bir "Haftanın Özeti" girişi yap.
+4. Seçilen her gelişme için temiz bir HTML kart tasarımı (`border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px; margin-bottom: 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #ffffff;`) kullan.
+5. Her kartta şunlar bulunsun:
+   - **Başlık**: Kalın ve belirgin (varsa ilgili model/teknoloji adı)
+   - **Kategori Etiketi**: Şık bir rozet (badge) gibi görünen renkli etiket (Örn: Yeni Model, Araştırma/Makale, Açık Kaynak, Endüstri)
    - **Özet**: 2-3 cümle ile ne yapıldığını ve teknik yeniliği açıkla.
    - **Neden Önemli?**: Sektöre ve geleceğe etkisini 1-2 cümleyle açıkla.
-   - **Kaynak Linki**: Doğrudan tıklanabilir bir buton veya link formatında kaynak URL'si.
-5. Sadece geçerli `<html><body>...</body></html>` kodunu döndür, markdown tırnakları (```html) KULLANMA.
+   - **Kaynak Linki**: Doğrudan tıklanabilir bir buton veya link formatında kaynak URL'si (`<a href="..." style="...">Kaynağa Git →</a>`).
+6. Sadece geçerli `<html><body style="background-color: #f8fafc; padding: 20px; font-family: sans-serif;">...</body></html>` kodunu döndür, markdown tırnakları (```html) KULLANMA.
 """
 
     # OpenCode Go'da yer alan popüler modellerden birini seçebilirsiniz:
@@ -112,7 +119,11 @@ def send_email(html_content):
     print("E-posta gönderiliyor...")
     msg = MIMEMultipart("alternative")
     msg["Subject"] = "🚀 Haftalık Yapay Zekâ & Teknoloji Radarı"
-    msg["From"] = EMAIL_SENDER
+    
+    # ESKİ: msg["From"] = EMAIL_SENDER
+    # YENİ: Görünecek bülten adı ve e-posta adresi:
+    msg["From"] = formataddr(("🤖 AI & Teknoloji Radarı", EMAIL_SENDER))
+    
     msg["To"] = EMAIL_RECEIVER
 
     part = MIMEText(html_content, "html")
@@ -122,7 +133,6 @@ def send_email(html_content):
         server.login(EMAIL_SENDER, EMAIL_PASSWORD)
         server.sendmail(EMAIL_SENDER, EMAIL_RECEIVER, msg.as_string())
     print("E-posta başarıyla gönderildi!")
-
 
 def main():
     arxiv_data = fetch_arxiv_papers()
