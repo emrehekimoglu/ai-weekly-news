@@ -1,4 +1,5 @@
 import os
+import sys
 import uuid
 import json
 import time
@@ -373,12 +374,16 @@ Bu verileri titizlikle filtreleyerek haftanın EN ÖNEMLİ 10 gelişmesini seç.
 # 5. E-POSTA DAĞITIMI
 # ==========================================
 def send_newsletter_to_all(html_content, recipients):
-    """Bülteni her aboneye kendi kişisel iptal bağlantısıyla postalar."""
+    """Bülteni her aboneye kendi kişisel iptal bağlantısıyla postalar.
+
+    Gönderilemeyen adreslerin listesini döndürür.
+    """
     if not recipients:
-        print("Gönderilecek abone bulunamadı!")
-        return
+        print("[HATA] Gönderilecek abone bulunamadı!")
+        return None
 
     print(f"Toplam {len(recipients)} kişiye e-posta gönderimi başlıyor...")
+    failed = []
 
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
         server.login(EMAIL_SENDER, EMAIL_PASSWORD)
@@ -413,8 +418,14 @@ def send_newsletter_to_all(html_content, recipients):
 
             except Exception as e:
                 print(f"✗ Hata ({email}): {e}")
+                failed.append(email)
 
-    print("Tüm gönderimler başarıyla tamamlandı!")
+    sent = len(recipients) - len(failed)
+    if failed:
+        print(f"[HATA] {sent}/{len(recipients)} gönderim başarılı, {len(failed)} başarısız: {', '.join(failed)}")
+    else:
+        print(f"Tüm gönderimler başarıyla tamamlandı! ({sent}/{len(recipients)})")
+    return failed
 
 
 # ==========================================
@@ -443,7 +454,9 @@ def main():
 
     newsletter_html = generate_digest_with_opencode(raw_text)
     recipients = get_subscribers()
-    send_newsletter_to_all(newsletter_html, recipients)
+    failed = send_newsletter_to_all(newsletter_html, recipients)
+    if failed is None or failed:
+        sys.exit(1)
 
 
 if __name__ == "__main__":
