@@ -42,7 +42,12 @@ Safeguards in `generate_digest_with_opencode` and `validate_digest_html`:
 2. **`subscribers.txt`** in the working directory, one email per line (lines starting with `#` are ignored). Used only if the sheet is not configured or has no active subscribers.
 3. **`EMAIL_RECEIVER`** as a single recipient, if neither of the above gives anyone.
 
-**Sending** uses Gmail SMTP over SSL (`smtp.gmail.com:465`), logging in as `EMAIL_SENDER` with `EMAIL_PASSWORD`. Each subscriber gets their own copy with a footer whose unsubscribe link points to `WEB_APP_URL?action=unsubscribe&email=…&token=…`. The unsubscribe web app itself is not in this repository; if `WEB_APP_URL` or the subscriber's token is missing, the link is `#`.
+**Sending** uses Gmail SMTP over SSL (`smtp.gmail.com:465`), logging in as `EMAIL_SENDER` with `EMAIL_PASSWORD`. Each subscriber gets their own copy, built by `build_message`:
+
+- **Subject** ends with the send date, e.g. `🚀 Haftalık Yapay Zekâ & Teknoloji Radarı • 28 Eylül 2026`, so Gmail shows each week as its own conversation instead of grouping them.
+- **Body** is `multipart/alternative`: a plain-text version generated from the HTML by `html_to_text` (links written as `text (url)`), followed by the HTML version.
+- **Unsubscribe**: a footer link and a `List-Unsubscribe` header, both pointing to `WEB_APP_URL?action=unsubscribe&email=…&token=…`. The unsubscribe web app itself is not in this repository. If `WEB_APP_URL` or the subscriber's token is missing, the footer link is `#` and the header is left out. The one-click `List-Unsubscribe-Post` header is not sent, because it only works if the web app accepts a POST request.
+- **Logo**: the prompt asks the model for an inline CSS badge with an emoji instead of an external image, so there is nothing for mail clients to block.
 
 If there are no recipients, or any single email fails to send, the run exits with status 1 so the failure shows up in GitHub Actions. The other subscribers still receive their copy.
 
@@ -51,11 +56,12 @@ If there are no recipients, or any single email fails to send, the run exits wit
 The workflow is [`.github/workflows/newsletter.yml`](.github/workflows/newsletter.yml).
 
 - **Schedule:** every Monday at 06:00 UTC (09:00 Turkey time), cron `0 6 * * 1`.
-- **Manual run:** Actions tab → *Haftalik Teknoloji ve AI Bulteni* → *Run workflow*. It has one input:
+- **Manual run:** Actions tab → *Haftalik Teknoloji ve AI Bulteni* → *Run workflow*. It has two inputs:
   - `dry_run` (default off): only collect data from the sources and print a summary, including the Reddit items. The LLM is not called and no email is sent.
+  - `preview` (default off): generate the full newsletter, but email it only to the owner (`PREVIEW_EMAIL`, or `EMAIL_RECEIVER` if that is unset) with an `[ÖNİZLEME]` subject prefix. The subscriber list is never read. The HTML is also uploaded as the `newsletter-preview` run artifact.
 
 > [!WARNING]
-> A manual run with `dry_run` off sends the real newsletter to every active subscriber. Use `dry_run` when you only want to test the sources.
+> A manual run with both `dry_run` and `preview` off sends the real newsletter to every active subscriber. Use `dry_run` to test the sources and `preview` to see the finished email.
 
 ## Secrets
 
@@ -70,6 +76,7 @@ Set these under *Settings → Secrets and variables → Actions*. The workflow p
 | `SPREADSHEET_ID` | For the Sheet | ID of the subscriber Google Sheet (shared with the service account) |
 | `WEB_APP_URL` | For unsubscribe links | Base URL of the unsubscribe web app |
 | `EMAIL_RECEIVER` | No | Fallback single recipient when no other subscriber list is available |
+| `PREVIEW_EMAIL` | No | Where `preview` runs send the newsletter (falls back to `EMAIL_RECEIVER`) |
 | `REDDIT_CLIENT_ID` | No | Reddit app ID; enables the OAuth path |
 | `REDDIT_CLIENT_SECRET` | No | Reddit app secret; enables the OAuth path |
 
@@ -111,7 +118,7 @@ python main.py
 2. `python -m py_compile main.py` and `python -c "import main"`
 3. `pytest -q`
 
-The tests in [`tests/`](tests) use no network: they cover date parsing and HTML validation, the Reddit RSS fallback (with a fake `requests.get`), and send-failure reporting (with a fake SMTP server).
+The tests in [`tests/`](tests) use no network: they cover date parsing and HTML validation, the Reddit RSS fallback (with a fake `requests.get`), send-failure reporting (with a fake SMTP server), preview mode, and the email format (subject, plain-text part and unsubscribe header).
 
 To run the same checks locally:
 

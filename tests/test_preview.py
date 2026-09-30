@@ -47,8 +47,9 @@ def test_preview_recipient_empty_without_address(monkeypatch):
 def test_preview_sends_only_to_owner_and_saves_html(monkeypatch, preview_run):
     monkeypatch.setattr(main, "PREVIEW_EMAIL", "me@example.com")
     main.main()
-    assert preview_run == [([{"email": "me@example.com", "token": ""}],
-                            "[ÖNİZLEME] 🚀 Haftalık Yapay Zekâ & Teknoloji Radarı")]
+    [(recipients, subject)] = preview_run
+    assert recipients == [{"email": "me@example.com", "token": ""}]
+    assert subject == f"[ÖNİZLEME] {main.newsletter_subject()}"
     with open(main.PREVIEW_FILE, encoding="utf-8") as f:
         assert f.read() == "<body>bülten</body>"
 
