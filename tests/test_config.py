@@ -103,7 +103,7 @@ def test_sheets_failure_falls_back_loudly(cfg, monkeypatch, caplog):
 
 def test_sheets_failure_fails_the_run_after_sending(cfg, fake_sources, monkeypatch):
     fake_sources([make_item()])
-    monkeypatch.setattr(llm, "generate_digest", lambda items: make_digest())
+    monkeypatch.setattr(llm, "generate_digest", lambda items, previous=(): make_digest())
     recipients = [{"email": "me@example.com", "token": ""}]
     monkeypatch.setattr(subscribers, "get_subscribers", lambda: (recipients, "Google Sheets okunamadı"))
     sent = []
