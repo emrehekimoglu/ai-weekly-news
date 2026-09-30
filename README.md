@@ -13,7 +13,9 @@ A weekly, Turkish-language AI and technology newsletter that writes and sends it
 | `render.py` and `templates/` | The email design: Jinja2 templates for the HTML and plain-text versions |
 | `subscribers.py` | Reading the subscriber sheet and fallbacks, and the preview recipient |
 | `mailer.py` | Subject, plain-text part, unsubscribe footer and header, and sending over Gmail |
-| `app.py` | The run itself: check, collect, write, send |
+| `dedup.py` | Spotting the same story from two sources (by normalised link or title) |
+| `history.py` | Remembering which stories earlier issues sent, in [`data/history.json`](data/history.json) |
+| `app.py` | The run itself: check, collect, filter, write, send |
 
 To add a source, write a module in `newsletter/sources/` with a `fetch()` function that returns a list of `NewsItem`, and add it to `SOURCES` in [`newsletter/sources/__init__.py`](newsletter/sources/__init__.py).
 
@@ -23,9 +25,11 @@ Output goes through Python's `logging` module to standard output, one plain line
 
 0. **Check settings.** Before anything is collected, `config.check_config` makes sure the required secrets are present (see [Secrets](#secrets)). If something is missing, each problem is printed as a GitHub Actions error and the run stops at once, before any source is fetched or the LLM is called. `dry_run` runs skip this check.
 1. **Collect.** The run walks through the six sources in `SOURCES` (below). Each item is a `NewsItem` carrying a source, title, date (converted to Turkish, e.g. `28 Eylül 2026`), link and short summary. A source that raises an error is logged and skipped, so one broken feed does not stop the run. Every HTTP request has a timeout; RSS and Atom feeds (arXiv, The Verge, Ars Technica) are fetched with a 15-second limit via `sources/feeds.py`.
-2. **Write.** All items go to an LLM in a single prompt. The model chooses the week's most important developments, prioritising new model launches, then viral, safety or scandal stories, then research and open source, and answers in JSON: a two-sentence intro plus, for each pick, the item's number, a Turkish title, a category and a 2 to 3 sentence summary.
-3. **Check and render.** The JSON is validated (see [LLM step](#llm-step)); if the model fails three times, the run stops with an error and no email goes out. The picks are then rendered with the templates in [`newsletter/templates/`](newsletter/templates), so the layout is the same every week.
-4. **Send.** The newsletter is emailed to each active subscriber through Gmail, with a personal unsubscribe link added to the footer.
+2. **Filter.** Repeats are removed before the LLM sees anything (see [Repeated stories](#repeated-stories)): the same story from two sources is kept once, and stories already sent in the last 8 issues are dropped.
+3. **Write.** The remaining items go to an LLM in a single prompt. The model chooses the week's most important developments, prioritising new model launches, then viral, safety or scandal stories, then research and open source, and answers in JSON: a two-sentence intro plus, for each pick, the item's number, a Turkish title, a category and a 2 to 3 sentence summary.
+4. **Check and render.** The JSON is validated (see [LLM step](#llm-step)); if the model fails three times, the run stops with an error and no email goes out. The picks are then rendered with the templates in [`newsletter/templates/`](newsletter/templates), so the layout is the same every week.
+5. **Send.** The newsletter is emailed to each active subscriber through Gmail, with a personal unsubscribe link in the footer.
+6. **Remember.** After a real send that reached at least one subscriber, the issue's stories are added to `data/history.json` and the workflow commits that file.
 
 ## Sources
 
@@ -39,6 +43,16 @@ Output goes through Python's `logging` module to standard output, one plain line
 | 6 | Tech media | 4 latest posts each from The Verge (AI section) and Ars Technica |
 
 **Reddit** blocks unauthenticated JSON requests from data-centre IPs such as GitHub Actions runners. If `REDDIT_CLIENT_ID` and `REDDIT_CLIENT_SECRET` are set, the script uses Reddit's app-only OAuth API and keeps posts with more than 300 upvotes. Otherwise it falls back to a single combined RSS request (`r/ChatGPT+singularity+LocalLLaMA/top/.rss`), keeps up to 5 posts per subreddit, and retries once after an HTTP 429.
+
+## Repeated stories
+
+**Across sources in the same week** (`dedup.remove_duplicates`): items are compared by link after dropping `http(s)`, `www.`, tracking parameters such as `utm_*` and `ref`, the `#fragment` and a trailing `/`, and by title after lower-casing and removing punctuation. The first one in source order is kept (arXiv, Hacker News, GitHub, company blogs, Reddit, tech media). Stories that are the same news under different links and titles are left to the LLM, which is told to pick only the best source for each event.
+
+**Across weeks** (`history.py`): [`data/history.json`](data/history.json) lists the title, link and source of every story in the last 8 issues. On each run, collected items whose link was already sent are dropped, and the titles from the last 2 issues are listed in the prompt so the model does not pick the same event again from a new link (unless there is real news, such as an announced model being released). The file is updated only after a real send reaches at least one subscriber; `preview` and `dry_run` never change it. The *Sayı Geçmişini Kaydet* workflow step commits it back to the repository, which is why the job has `contents: write` permission. If `main` is ever protected against direct pushes, that step will fail and the history will stop updating.
+
+To let a story through again, delete its entry from `data/history.json`.
+
+If every collected item has already been sent, the run exits with status 1 and sends nothing.
 
 ## LLM step
 
@@ -80,7 +94,7 @@ The workflow is [`.github/workflows/newsletter.yml`](.github/workflows/newslette
 
 - **Schedule:** every Monday at 06:00 UTC (09:00 Turkey time), cron `0 6 * * 1`.
 - **Manual run:** Actions tab → *Haftalik Teknoloji ve AI Bulteni* → *Run workflow*. It has two inputs:
-  - `dry_run` (default off): only collect data from the sources and print how many items each source returned, with every item's title. The LLM is not called and no email is sent.
+  - `dry_run` (default off): only collect data from the sources and print how many items each source returned, with every item's title, and how many are left after removing repeats. The LLM is not called and no email is sent.
   - `preview` (default off): generate the full newsletter, but email it only to the owner (`PREVIEW_EMAIL`, or `EMAIL_RECEIVER` if that is unset) with an `[ÖNİZLEME]` subject prefix. The subscriber list is never read. The HTML is also uploaded as the `newsletter-preview` run artifact.
 
 > [!WARNING]
@@ -145,6 +159,8 @@ python main.py
 
 (A `subscribers.txt` file in the repo root, if present, takes priority over `EMAIL_RECEIVER`.)
 
+A successful local send also adds the issue to `data/history.json`. Don't commit that change unless you mean it, or the same stories will be skipped next Monday.
+
 ## Tests and CI
 
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every pull request and on pushes to `main`. It gets no secrets, never calls the LLM and never sends email. It runs:
@@ -153,7 +169,7 @@ python main.py
 2. `python -m py_compile main.py` and `python -c "import main"`
 3. `pytest -q`
 
-The tests in [`tests/`](tests) use no network: they cover date parsing, the prompt and checking the model's JSON, the email templates, skipping a failing source, dry-run output, the Reddit RSS fallback (with a fake `requests.get`), send-failure reporting (with a fake SMTP server), preview mode, the email format (subject, HTML escaping, plain-text part and unsubscribe header), and the startup settings check, loud Sheets fallback and feed timeouts.
+The tests in [`tests/`](tests) use no network: they cover date parsing, the prompt and checking the model's JSON, the email templates, removing repeated stories and the issue history, skipping a failing source, dry-run output, the Reddit RSS fallback (with a fake `requests.get`), send-failure reporting (with a fake SMTP server), preview mode, the email format (subject, HTML escaping, plain-text part and unsubscribe header), and the startup settings check, loud Sheets fallback and feed timeouts.
 
 To run the same checks locally:
 

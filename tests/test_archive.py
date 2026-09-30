@@ -71,7 +71,7 @@ def run(set_config, fake_sources, monkeypatch, tmp_path):
     set_config(DRY_RUN=False, PREVIEW=False, PREVIEW_FILE=str(tmp_path / "newsletter.html"),
                ARCHIVE_FILE=str(tmp_path / "issue.html"))
     monkeypatch.setattr(config, "check_config", lambda: [])
-    monkeypatch.setattr(llm, "generate_digest", lambda items: make_digest())
+    monkeypatch.setattr(llm, "generate_digest", lambda items, *args, **kwargs: make_digest())
     monkeypatch.setattr(subscribers, "get_subscribers", lambda: ([{"email": "a@example.com", "token": "t"}], None))
     monkeypatch.setattr(subscribers, "get_preview_recipients", lambda: [{"email": "me@example.com", "token": ""}])
     monkeypatch.setattr(mailer, "send_all", lambda digest, recipients, subject=None: [])

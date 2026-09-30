@@ -11,7 +11,7 @@ def preview_run(set_config, fake_sources, monkeypatch, tmp_path):
     fake_sources([make_item()])
     set_config(DRY_RUN=False, PREVIEW=True, PREVIEW_FILE=str(tmp_path / "newsletter.html"))
     monkeypatch.setattr(config, "check_config", lambda: [])
-    monkeypatch.setattr(llm, "generate_digest", lambda items: make_digest())
+    monkeypatch.setattr(llm, "generate_digest", lambda items, previous=(): make_digest())
     monkeypatch.setattr(subscribers, "get_subscribers", lambda: pytest.fail("önizlemede abone listesi okunmamalı"))
 
     sent = []
@@ -50,7 +50,7 @@ def test_preview_without_owner_address_fails(set_config, fake_sources, monkeypat
     fake_sources([make_item()])
     set_config(DRY_RUN=False, PREVIEW=True, PREVIEW_EMAIL=None, EMAIL_RECEIVER=None,
                PREVIEW_FILE=str(tmp_path / "newsletter.html"))
-    monkeypatch.setattr(llm, "generate_digest", lambda items: make_digest())
+    monkeypatch.setattr(llm, "generate_digest", lambda items, previous=(): make_digest())
     monkeypatch.setattr(subscribers, "get_subscribers", lambda: pytest.fail("abone listesi okundu"))
     with pytest.raises(SystemExit):
         app.main()
