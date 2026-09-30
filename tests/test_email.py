@@ -5,7 +5,7 @@ from email import message_from_string
 
 import pytest
 
-import main
+from newsletter import mailer
 
 HTML = (
     "<html><head><style>p{color:red}</style></head><body>"
@@ -16,18 +16,17 @@ HTML = (
 
 
 @pytest.fixture(autouse=True)
-def env(monkeypatch):
-    monkeypatch.setattr(main, "EMAIL_SENDER", "sender@example.com")
-    monkeypatch.setattr(main, "WEB_APP_URL", "https://script.example.com/exec")
+def env(set_config):
+    set_config(EMAIL_SENDER="sender@example.com", WEB_APP_URL="https://script.example.com/exec")
 
 
 def test_subject_contains_turkish_date():
-    subject = main.newsletter_subject(datetime(2026, 9, 28, tzinfo=timezone.utc))
+    subject = mailer.newsletter_subject(datetime(2026, 9, 28, tzinfo=timezone.utc))
     assert subject.endswith("• 28 Eylül 2026")
 
 
 def test_html_to_text_keeps_text_and_links():
-    text = main.html_to_text(HTML)
+    text = mailer.html_to_text(HTML)
     assert "color:red" not in text
     assert "AI & TEKNOLOJİ RADARI" in text
     assert "Haftanın özeti." in text
@@ -35,17 +34,17 @@ def test_html_to_text_keeps_text_and_links():
     assert "<" not in text
 
 
-def test_unsubscribe_url_needs_web_app_and_token(monkeypatch):
-    assert main.unsubscribe_url("a+b@example.com", "") is None
-    assert main.unsubscribe_url("a+b@example.com", "t") == (
+def test_unsubscribe_url_needs_web_app_and_token(set_config):
+    assert mailer.unsubscribe_url("a+b@example.com", "") is None
+    assert mailer.unsubscribe_url("a+b@example.com", "t") == (
         "https://script.example.com/exec?action=unsubscribe&email=a%2Bb%40example.com&token=t"
     )
-    monkeypatch.setattr(main, "WEB_APP_URL", "")
-    assert main.unsubscribe_url("a@example.com", "t") is None
+    set_config(WEB_APP_URL="")
+    assert mailer.unsubscribe_url("a@example.com", "t") is None
 
 
 def test_message_has_plain_html_and_list_unsubscribe():
-    msg = main.build_message(HTML, {"email": "a@example.com", "token": "t"}, "Konu")
+    msg = mailer.build_message(HTML, {"email": "a@example.com", "token": "t"}, "Konu")
     parsed = message_from_string(msg.as_string())
     assert parsed["List-Unsubscribe"] == (
         "<https://script.example.com/exec?action=unsubscribe&email=a%40example.com&token=t>"
@@ -60,10 +59,10 @@ def test_message_has_plain_html_and_list_unsubscribe():
 
 
 def test_no_list_unsubscribe_without_token():
-    msg = main.build_message(HTML, {"email": "a@example.com"}, "Konu")
+    msg = mailer.build_message(HTML, {"email": "a@example.com"}, "Konu")
     assert msg["List-Unsubscribe"] is None
 
 
 def test_prompt_does_not_hotlink_logo():
-    import inspect
-    assert "flaticon" not in inspect.getsource(main)
+    from newsletter import llm
+    assert "flaticon" not in llm.PROMPT
