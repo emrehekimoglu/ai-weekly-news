@@ -1,6 +1,6 @@
 # AI & Teknoloji Radarı
 
-A weekly, Turkish-language AI and technology newsletter that writes and sends itself. Every Monday a GitHub Actions job collects the past week's AI news from six kinds of sources, asks an LLM to pick the 10 to 12 most important items and lay them out as an HTML email, and mails that email to every active subscriber.
+A weekly, Turkish-language AI and technology newsletter that writes and sends itself. Every Monday a GitHub Actions job collects the past week's AI news from six kinds of sources, asks an LLM to pick the 10 to 12 most important items and summarise them in Turkish, fills those into a fixed email template, and mails that email to every active subscriber.
 
 `main.py` is only the entry point the workflow runs; the code lives in the [`newsletter/`](newsletter) package:
 
@@ -9,7 +9,8 @@ A weekly, Turkish-language AI and technology newsletter that writes and sends it
 | `config.py` | Settings read from environment variables, and the startup check |
 | `models.py` | `NewsItem`, the shared shape of a collected story (source, title, date, link, summary) |
 | `sources/` | One module per source, plus `SOURCES`, the list the run walks through |
-| `llm.py` | Prompt, LLM call with retries, and HTML validation |
+| `llm.py` | Prompt, LLM call with retries, and checking the model's JSON answer |
+| `render.py` and `templates/` | The email design: Jinja2 templates for the HTML and plain-text versions |
 | `subscribers.py` | Reading the subscriber sheet and fallbacks, and the preview recipient |
 | `mailer.py` | Subject, plain-text part, unsubscribe footer and header, and sending over Gmail |
 | `app.py` | The run itself: check, collect, write, send |
@@ -22,8 +23,8 @@ Output goes through Python's `logging` module to standard output, one plain line
 
 0. **Check settings.** Before anything is collected, `config.check_config` makes sure the required secrets are present (see [Secrets](#secrets)). If something is missing, each problem is printed as a GitHub Actions error and the run stops at once, before any source is fetched or the LLM is called. `dry_run` runs skip this check.
 1. **Collect.** The run walks through the six sources in `SOURCES` (below). Each item is a `NewsItem` carrying a source, title, date (converted to Turkish, e.g. `28 Eylül 2026`), link and short summary. A source that raises an error is logged and skipped, so one broken feed does not stop the run. Every HTTP request has a timeout; RSS and Atom feeds (arXiv, The Verge, Ars Technica) are fetched with a 15-second limit via `sources/feeds.py`.
-2. **Write.** All items go to an LLM in a single prompt. The model chooses the week's most important developments, prioritising new model launches, then viral, safety or scandal stories, then research and open source, and returns a complete HTML newsletter (header, a two-sentence summary, one card per item).
-3. **Check.** The HTML is validated before anything is sent (see [LLM step](#llm-step)). If the model fails three times, the run stops with an error and no email goes out.
+2. **Write.** All items go to an LLM in a single prompt. The model chooses the week's most important developments, prioritising new model launches, then viral, safety or scandal stories, then research and open source, and answers in JSON: a two-sentence intro plus, for each pick, the item's number, a Turkish title, a category and a 2 to 3 sentence summary.
+3. **Check and render.** The JSON is validated (see [LLM step](#llm-step)); if the model fails three times, the run stops with an error and no email goes out. The picks are then rendered with the templates in [`newsletter/templates/`](newsletter/templates), so the layout is the same every week.
 4. **Send.** The newsletter is emailed to each active subscriber through Gmail, with a personal unsubscribe link added to the footer.
 
 ## Sources
@@ -43,10 +44,13 @@ Output goes through Python's `logging` module to standard output, one plain line
 
 The model is called through [OpenCode Go](https://opencode.ai), which exposes an OpenAI-compatible API at `https://opencode.ai/zen/go/v1`; the script uses the `openai` Python client against it. The model defaults to `deepseek-v4.1-flash` and can be changed with the `OPENCODE_MODEL` environment variable.
 
-Safeguards in `llm.generate_digest` and `llm.validate_digest_html`:
+The model only chooses and writes; it never writes HTML or links. Each pick refers to an item by its number in the prompt, and the link and date always come from that collected item, so a made-up URL cannot reach subscribers.
 
-- Markdown code fences (```` ```html ````) around the answer are stripped.
-- The HTML must be at least 2,000 characters, contain `<html>…</html>` and `<body>…</body>` in order, and contain at least 5 `http(s)` links.
+Safeguards in `llm.generate_digest` and `llm.parse_digest`:
+
+- The JSON object is taken from the answer even if the model wraps it in ```` ```json ```` fences or extra text.
+- The intro and each pick's title and summary must be non-empty text, and each number must match a collected item. Repeated numbers are dropped, an unknown category becomes `Endüstri`, and at most 12 picks are kept.
+- At least 5 valid picks are required.
 - Up to 3 attempts, waiting 10 s and then 20 s between them. After the third failure the script exits with status 1 and sends nothing.
 
 ## Email step
@@ -62,9 +66,11 @@ If the sheet is configured but cannot be read, or has no `AKTIF` rows, the newsl
 **Sending** uses Gmail SMTP over SSL (`smtp.gmail.com:465`), logging in as `EMAIL_SENDER` with `EMAIL_PASSWORD`. Each subscriber gets their own copy, built by `mailer.build_message`:
 
 - **Subject** ends with the send date, e.g. `🚀 Haftalık Yapay Zekâ & Teknoloji Radarı • 28 Eylül 2026`, so Gmail shows each week as its own conversation instead of grouping them.
-- **Body** is `multipart/alternative`: a plain-text version generated from the HTML by `html_to_text` (links written as `text (url)`), followed by the HTML version.
+- **Body** is `multipart/alternative`: a plain-text version from `newsletter.txt.j2`, followed by the HTML version from `newsletter.html.j2`. Both are rendered per subscriber so the unsubscribe link is theirs. Text from the model is HTML-escaped.
 - **Unsubscribe**: a footer link and a `List-Unsubscribe` header, both pointing to `WEB_APP_URL?action=unsubscribe&email=…&token=…`. The unsubscribe web app itself is not in this repository. If `WEB_APP_URL` or the subscriber's token is missing, the footer link is `#` and the header is left out. The one-click `List-Unsubscribe-Post` header is not sent, because it only works if the web app accepts a POST request.
-- **Logo**: the prompt asks the model for an inline CSS badge with an emoji instead of an external image, so there is nothing for mail clients to block.
+- **Logo**: the template uses an inline CSS badge with an emoji instead of an external image, so there is nothing for mail clients to block.
+
+To change the design, edit [`newsletter/templates/newsletter.html.j2`](newsletter/templates/newsletter.html.j2) (and the `.txt.j2` twin), then check it with a `preview` run.
 
 If there are no recipients, or any single email fails to send, the run exits with status 1 so the failure shows up in GitHub Actions. The other subscribers still receive their copy.
 
@@ -137,7 +143,7 @@ python main.py
 2. `python -m py_compile main.py` and `python -c "import main"`
 3. `pytest -q`
 
-The tests in [`tests/`](tests) use no network: they cover date parsing, the prompt and HTML validation, skipping a failing source, dry-run output, the Reddit RSS fallback (with a fake `requests.get`), send-failure reporting (with a fake SMTP server), preview mode, the email format (subject, plain-text part and unsubscribe header), and the startup settings check, loud Sheets fallback and feed timeouts.
+The tests in [`tests/`](tests) use no network: they cover date parsing, the prompt and checking the model's JSON, the email templates, skipping a failing source, dry-run output, the Reddit RSS fallback (with a fake `requests.get`), send-failure reporting (with a fake SMTP server), preview mode, the email format (subject, HTML escaping, plain-text part and unsubscribe header), and the startup settings check, loud Sheets fallback and feed timeouts.
 
 To run the same checks locally:
 
