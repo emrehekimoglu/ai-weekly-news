@@ -4,7 +4,7 @@ on:
   schedule:
     # Her Pazartesi saat 06:00 UTC (TSİ 09:00)
     - cron: '0 6 * * 1'
-  workflow_dispatch: # Test edebilmeniz için manuel "Çalıştır" butonu sağlar
+  workflow_dispatch: # Manuel test butonu
 
 jobs:
   build-and-send:
@@ -30,4 +30,7 @@ jobs:
           EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
           EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
           EMAIL_RECEIVER: ${{ secrets.EMAIL_RECEIVER }}
+          # --- BU İKİ SATIRI MUTLAKA EKLEYİN ---
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+          SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
         run: python main.py
