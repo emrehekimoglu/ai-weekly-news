@@ -41,6 +41,12 @@ LLM_MAX_ATTEMPTS = 3
 LLM_BACKOFF_SECONDS = 10  # 10s, 20s, ...
 MIN_DIGEST_CARDS = 5
 
+# Opsiyonel: Reddit uygulama kimlik bilgileri (yoksa birleşik RSS akışı kullanılır)
+REDDIT_CLIENT_ID = os.environ.get("REDDIT_CLIENT_ID")
+REDDIT_CLIENT_SECRET = os.environ.get("REDDIT_CLIENT_SECRET")
+# "true" ise sadece veri toplanır; model çağrılmaz, e-posta gönderilmez
+DRY_RUN = os.environ.get("DRY_RUN", "").lower() == "true"
+
 
 # ==========================================
 # YARDIMCI: TARİH DÖNÜŞTÜRÜCÜ (TÜRKÇE)
@@ -184,20 +190,104 @@ def fetch_company_blogs():
     return items
 
 
+REDDIT_USER_AGENT = "python:ai-weekly-news:v1.1 (by /u/emrehekimoglu)"
+
+
+def _reddit_oauth_token():
+    """REDDIT_CLIENT_ID/SECRET tanımlıysa uygulama (app-only) OAuth token'ı alır."""
+    if not (REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET):
+        return None
+    try:
+        res = requests.post(
+            "https://www.reddit.com/api/v1/access_token",
+            auth=(REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET),
+            data={"grant_type": "client_credentials"},
+            headers={"User-Agent": REDDIT_USER_AGENT},
+            timeout=8,
+        )
+        res.raise_for_status()
+        return res.json().get("access_token")
+    except Exception as e:
+        print(f"Reddit OAuth token alınamadı: {e}")
+        return None
+
+
+def _reddit_posts_json(sub, token):
+    """OAuth ile top listesini çeker; JSON dönmezse None döner."""
+    res = requests.get(
+        f"https://oauth.reddit.com/r/{sub}/top?t=week&limit=6&raw_json=1",
+        headers={"User-Agent": REDDIT_USER_AGENT, "Authorization": f"Bearer {token}"},
+        timeout=8,
+    )
+    if res.status_code != 200 or "json" not in res.headers.get("Content-Type", ""):
+        print(f"Reddit r/{sub} JSON erişimi reddedildi (HTTP {res.status_code}, {res.headers.get('Content-Type', '?')})")
+        return None
+    return [p.get("data", {}) for p in res.json().get("data", {}).get("children", [])]
+
+
+def _reddit_items_rss(subreddits, per_sub=5):
+    """Tüm subreddit'lerin haftalık top RSS akışını TEK istekte çeker (upvote bilgisi yok, sıralama zaten skora göre).
+
+    Kimliksiz istekler GitHub Actions IP'lerinde ilk bir-iki istekten sonra HTTP 429 alıyor,
+    bu yüzden subreddit başına ayrı istek yerine birleşik (r/A+B+C) akış kullanılıyor.
+    """
+    url = f"https://www.reddit.com/r/{'+'.join(subreddits)}/top/.rss?t=week&limit=100"
+    res = requests.get(url, headers={"User-Agent": REDDIT_USER_AGENT}, timeout=10)
+    if res.status_code == 429:
+        retry_after = res.headers.get("Retry-After", "")
+        wait = min(int(retry_after), 30) if retry_after.isdigit() else 10
+        print(f"Reddit RSS hız sınırı (HTTP 429), {wait} sn beklenip tekrar deneniyor...")
+        time.sleep(wait)
+        res = requests.get(url, headers={"User-Agent": REDDIT_USER_AGENT}, timeout=10)
+    if res.status_code != 200:
+        print(f"Reddit RSS erişimi reddedildi (HTTP {res.status_code})")
+        return []
+    feed = feedparser.parse(res.content)
+    counts = {sub.lower(): 0 for sub in subreddits}
+    items = []
+    for entry in feed.entries:
+        match = re.search(r"/r/([^/]+)/", entry.get("link", ""))
+        sub = match.group(1) if match else (entry.get("tags") or [{}])[0].get("term", "")
+        if counts.get(sub.lower(), per_sub) >= per_sub:
+            continue
+        counts[sub.lower()] += 1
+        content = entry.get("content", [{}])[0].get("value", "") or entry.get("summary", "")
+        text = re.sub(r"<[^>]+>", " ", content).replace("submitted by", "")
+        text = re.sub(r"\s+", " ", text).strip()[:300]
+        items.append({
+            "source": f"Reddit r/{sub}",
+            "title": entry.title,
+            "date": parse_to_turkish_date(entry.get("updated_parsed", entry.get("published_parsed"))),
+            "link": entry.link,
+            "summary": f"[Haftanın En Çok Oylanan Paylaşımı] {text}"
+        })
+    print("Reddit RSS: " + ", ".join(f"r/{sub} {counts[sub.lower()]}" for sub in subreddits))
+    return items
+
+
 def fetch_reddit_viral_ai():
-    """5. Reddit Toplulukları: r/ChatGPT, r/singularity ve r/LocalLLaMA viral olayları, jailbreak ve skandallar."""
+    """5. Reddit Toplulukları: r/ChatGPT, r/singularity ve r/LocalLLaMA viral olayları, jailbreak ve skandallar.
+
+    Reddit, GitHub Actions gibi veri merkezi IP'lerinden gelen kimliksiz .json isteklerini
+    HTTP 403 ile engelliyor. REDDIT_CLIENT_ID/SECRET varsa OAuth API, yoksa birleşik RSS akışı kullanılır.
+    """
     print("5/6 - Reddit viral AI olayları ve tartışmaları taranıyor...")
     subreddits = ["ChatGPT", "singularity", "LocalLLaMA"]
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+    token = _reddit_oauth_token()
+    if not token:
+        try:
+            items = _reddit_items_rss(subreddits)
+        except Exception as e:
+            print(f"Reddit RSS taranırken hata: {e}")
+            items = []
+        print(f"Reddit toplam {len(items)} içerik.")
+        return items
+
     items = []
-    
     for sub in subreddits:
         try:
-            url = f"https://www.reddit.com/r/{sub}/top.json?t=week&limit=6"
-            res = requests.get(url, headers=headers, timeout=8).json()
-            posts = res.get("data", {}).get("children", [])
-            for post in posts:
-                pdata = post.get("data", {})
+            posts = _reddit_posts_json(sub, token)
+            for pdata in posts or []:
                 # Sadece toplulukta yüksek ilgi (300+ upvote) görmüş içerikler
                 if pdata.get("score", 0) > 300:
                     created_utc = pdata.get("created_utc", 0)
@@ -215,6 +305,7 @@ def fetch_reddit_viral_ai():
         except Exception as e:
             print(f"Reddit r/{sub} taranırken hata: {e}")
             continue
+    print(f"Reddit toplam {len(items)} içerik.")
     return items
 
 
@@ -481,6 +572,12 @@ def main():
 
     if not all_data:
         print("Hiçbir kaynaktan veri toplanamadı!")
+        return
+
+    if DRY_RUN:
+        print(f"DRY_RUN: Toplam {len(all_data)} içerik toplandı (Reddit: {len(reddit_data)}). Model ve e-posta atlandı.")
+        for item in reddit_data:
+            print(f"  - [{item['source']}] {item['title']}")
         return
 
     print(f"Toplam {len(all_data)} adet aday içerik toplandı. Modele aktarılıyor...")
