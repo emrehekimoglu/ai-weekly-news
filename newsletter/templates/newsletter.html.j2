@@ -1,0 +1,37 @@
+<html>
+<head><meta charset="utf-8"></head>
+<body style="background-color: #f8fafc; padding: 20px; font-family: sans-serif;">
+<div style="max-width: 640px; margin: 0 auto;">
+
+  <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+    <span style="display: inline-block; width: 44px; height: 44px; line-height: 44px; border-radius: 50%; background: #2563eb; color: #ffffff; text-align: center; font-size: 24px; vertical-align: middle; margin-right: 12px;">🤖</span>
+    <span style="font-size: 24px; font-weight: 800; color: #0f172a; vertical-align: middle;">AI &amp; TEKNOLOJİ RADARI</span>
+    <p style="font-size: 13px; color: #64748b; margin: 8px 0 0 0;">Haftalık Kürasyon • Yeni Modeller, Makaleler, Açık Kaynak ve Gelişmeler</p>
+  </div>
+  <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+
+  <p style="font-size: 15px; line-height: 1.6; color: #334155; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0 0 24px 0;">
+    <strong>Haftanın Özeti:</strong> {{ digest.intro }}
+  </p>
+
+  {% for entry in digest.entries %}
+  <div style="border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px; margin-bottom: 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #ffffff;">
+    <h2 style="font-size: 18px; font-weight: 700; color: #0f172a; margin: 0 0 10px 0;">{{ entry.title }}</h2>
+    <div style="margin-bottom: 12px;">
+      <span style="background: #f1f5f9; padding: 3px 8px; border-radius: 4px; font-size: 12px; color: #475569; margin-right: 8px;">📅 {{ entry.item.date }}</span>
+      <span style="background: #e0f2fe; padding: 3px 8px; border-radius: 4px; font-size: 12px; color: #0369a1;">{{ entry.category }}</span>
+    </div>
+    <p style="font-size: 14px; line-height: 1.6; color: #334155; margin: 0;">{{ entry.summary }}</p>
+    <a href="{{ entry.item.link }}" style="display: inline-block; margin-top: 10px; color: #2563eb; text-decoration: none; font-weight: bold; font-size: 13px;">Kaynağa Git →</a>
+  </div>
+  {% endfor %}
+
+  <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 30px 0 15px 0;">
+  <p style="text-align: center; font-size: 12px; color: #94a3b8; font-family: sans-serif;">
+    Bu bülteni AI &amp; Teknoloji Radarı'na abone olduğunuz için alıyorsunuz.<br>
+    Abonelikten ayrılmak isterseniz <a href="{{ unsubscribe_url or '#' }}" style="color: #64748b; text-decoration: underline;">buraya tıklayabilirsiniz</a>.
+  </p>
+
+</div>
+</body>
+</html>

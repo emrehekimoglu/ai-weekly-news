@@ -3,13 +3,20 @@
 import pytest
 
 from newsletter import app, config
-from newsletter.models import NewsItem
+from newsletter.models import Digest, DigestEntry, NewsItem
 from newsletter.sources import Source
 
 
 def make_item(**kw):
     fields = {"source": "s", "title": "t", "date": "d", "link": "https://example.com/1", "summary": "x"}
     return NewsItem(**{**fields, **kw})
+
+
+def make_digest(count=5):
+    entries = [DigestEntry(item=make_item(link=f"https://example.com/{i}", date="28 Eylül 2026"),
+                           title=f"Haber {i}", category="Yeni Model", summary=f"Özet {i}.")
+               for i in range(1, count + 1)]
+    return Digest(intro="Haftanın özeti.", entries=entries)
 
 
 @pytest.fixture

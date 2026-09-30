@@ -3,7 +3,7 @@
 import pytest
 
 from newsletter import app, config, llm, mailer, subscribers
-from tests.conftest import make_item
+from tests.conftest import make_digest, make_item
 
 
 class FakeSMTP:
@@ -32,16 +32,16 @@ def fake_smtp(monkeypatch, set_config):
 
 
 def test_all_sent_returns_empty_list():
-    assert mailer.send_all("<body></body>", [{"email": "ok@example.com"}]) == []
+    assert mailer.send_all(make_digest(), [{"email": "ok@example.com"}]) == []
 
 
 def test_failed_addresses_are_returned():
     recipients = [{"email": "ok@example.com"}, {"email": "bad@example.com"}]
-    assert mailer.send_all("<body></body>", recipients) == ["bad@example.com"]
+    assert mailer.send_all(make_digest(), recipients) == ["bad@example.com"]
 
 
 def test_no_recipients_returns_none():
-    assert mailer.send_all("<body></body>", []) is None
+    assert mailer.send_all(make_digest(), []) is None
 
 
 @pytest.mark.parametrize("recipients,should_fail", [
@@ -53,7 +53,7 @@ def test_main_exit_code(monkeypatch, set_config, fake_sources, recipients, shoul
     fake_sources([make_item()])
     set_config(DRY_RUN=False, PREVIEW=False)
     monkeypatch.setattr(config, "check_config", lambda: [])
-    monkeypatch.setattr(llm, "generate_digest", lambda items: "<body></body>")
+    monkeypatch.setattr(llm, "generate_digest", lambda items: make_digest())
     monkeypatch.setattr(subscribers, "get_subscribers", lambda: (recipients, None))
 
     if should_fail:

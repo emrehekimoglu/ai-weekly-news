@@ -8,7 +8,7 @@ import requests
 
 from newsletter import app, config, llm, mailer, subscribers
 from newsletter.sources import Source, arxiv, collect, media
-from tests.conftest import make_item
+from tests.conftest import make_digest, make_item
 
 COMPLETE = {
     "OPENCODE_API_KEY": "key",
@@ -103,11 +103,11 @@ def test_sheets_failure_falls_back_loudly(cfg, monkeypatch, caplog):
 
 def test_sheets_failure_fails_the_run_after_sending(cfg, fake_sources, monkeypatch):
     fake_sources([make_item()])
-    monkeypatch.setattr(llm, "generate_digest", lambda items: "<body></body>")
+    monkeypatch.setattr(llm, "generate_digest", lambda items: make_digest())
     recipients = [{"email": "me@example.com", "token": ""}]
     monkeypatch.setattr(subscribers, "get_subscribers", lambda: (recipients, "Google Sheets okunamadı"))
     sent = []
-    monkeypatch.setattr(mailer, "send_all", lambda html, r, subject=None: sent.extend(r) or [])
+    monkeypatch.setattr(mailer, "send_all", lambda digest, r, subject=None: sent.extend(r) or [])
     with pytest.raises(SystemExit) as exc:
         app.main()
     assert exc.value.code == 1
