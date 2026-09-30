@@ -8,7 +8,7 @@ import uuid
 from openai import OpenAI
 
 from newsletter import config
-from newsletter.models import Digest, DigestEntry
+from newsletter.models import Digest, DigestEntry, Stat
 
 log = logging.getLogger(__name__)
 
@@ -16,6 +16,9 @@ SYSTEM_PROMPT = "Sen profesyonel bir teknoloji bülteni editörüsün."
 
 CATEGORIES = ["Yeni Model", "Açık Kaynak", "Araştırma", "Güvenlik & Olay", "Endüstri"]
 MAX_DIGEST_CARDS = 12
+MAX_HEADLINE_CHARS = 90
+MAX_TLDR_CHARS = 160
+MAX_STAT_VALUE_CHARS = 16
 
 PROMPT = """
 Sen dünya standartlarında kıdemli bir yapay zeka ve teknoloji baş editörüsün.
@@ -35,7 +38,10 @@ Aynı olayı anlatan birden fazla kayıt varsa sadece en iyi kaynağı seç.
 
 YAZIM KURALLARI:
 - Her şeyi Türkçe yaz.
+- "headline": Haftanın manşeti. En çarpıcı gelişmeyi anlatan, dergi kapağı gibi merak uyandıran 3-8 kelimelik bir başlık (soru da olabilir). E-postanın konu satırı da budur. Abartma, verilerde olmayan bir iddia EKLEME.
 - "intro": 2 cümlelik samimi ve vizyoner bir "Haftanın Özeti" girişi.
+- "tldr": "30 saniyede bu hafta" için tam 3 madde; her biri tek cümle ve en fazla 120 karakter. Haftanın en önemli üç gelişmesini, okumaya vakti olmayan birine anlatır gibi yaz.
+- "stat": "Haftanın Rakamı". Seçtiğin haberlerden birinde AÇIKÇA geçen çarpıcı bir sayı: {{"value": "10 GW", "label": "Bu sayının ne anlama geldiğini anlatan tek cümle."}}. "value" en fazla 12 karakter olsun (örn. "%40", "128K", "3 kat"). Ham veride böyle bir sayı yoksa null yaz; ASLA sayı uydurma.
 - Her seçilen madde için:
   - "id": Ham verideki köşeli parantez içindeki numara (tam sayı). Bağlantı ve tarih bu numaradan alınır, kendin bağlantı YAZMA.
   - "title": Kısa ve belirgin başlık (ilgili model, proje veya haberin adı).
@@ -45,7 +51,7 @@ YAZIM KURALLARI:
 
 ÇIKTI BİÇİMİ:
 Sadece aşağıdaki yapıda geçerli bir JSON nesnesi döndür; HTML, markdown veya açıklama EKLEME:
-{{"intro": "...", "items": [{{"id": 3, "title": "...", "category": "Yeni Model", "summary": "..."}}]}}
+{{"headline": "...", "intro": "...", "tldr": ["...", "...", "..."], "stat": {{"value": "...", "label": "..."}}, "items": [{{"id": 3, "title": "...", "category": "Yeni Model", "summary": "..."}}]}}
 """
 
 
@@ -153,4 +159,44 @@ def parse_digest(content, items):
 
     if len(entries) < config.MIN_DIGEST_CARDS:
         raise ValueError(f"Yalnızca {len(entries)} haber seçilmiş (en az {config.MIN_DIGEST_CARDS} bekleniyor)")
-    return Digest(intro=intro, entries=entries[:MAX_DIGEST_CARDS])
+    return Digest(intro=intro, entries=entries[:MAX_DIGEST_CARDS], headline=_headline(data.get("headline")),
+                  tldr=_tldr(data.get("tldr")), stat=_stat(data.get("stat")))
+
+
+def _optional_text(value, max_chars):
+    """Kapak alanları için: geçerli kısa metin veya None (bozuk alan bülteni durdurmaz, sadece atlanır)."""
+    if not isinstance(value, str):
+        return None
+    text = " ".join(value.split())
+    return text if text and len(text) <= max_chars else None
+
+
+def _headline(value):
+    headline = _optional_text(value, MAX_HEADLINE_CHARS)
+    if value is not None and headline is None:
+        log.warning("Manşet geçersiz veya çok uzun, atlandı: %r", value)
+    return headline
+
+
+def _tldr(value):
+    if not isinstance(value, list):
+        if value is not None:
+            log.warning("'tldr' liste değil, atlandı")
+        return []
+    points = [p for p in (_optional_text(v, MAX_TLDR_CHARS) for v in value) if p][:3]
+    if len(points) < 2:
+        log.warning("'tldr' için yeterli geçerli madde yok, bölüm atlandı")
+        return []
+    return points
+
+
+def _stat(value):
+    if value is None:
+        return None
+    if isinstance(value, dict):
+        number = _optional_text(value.get("value"), MAX_STAT_VALUE_CHARS)
+        label = _optional_text(value.get("label"), MAX_TLDR_CHARS * 2)
+        if number and label and any(ch.isdigit() for ch in number):
+            return Stat(value=number, label=label)
+    log.warning("'stat' geçersiz, 'Haftanın Rakamı' bölümü atlandı: %r", value)
+    return None

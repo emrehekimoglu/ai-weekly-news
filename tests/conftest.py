@@ -3,7 +3,7 @@
 import pytest
 
 from newsletter import app, config
-from newsletter.models import Digest, DigestEntry, NewsItem
+from newsletter.models import Digest, DigestEntry, NewsItem, Stat
 from newsletter.sources import Source
 
 
@@ -12,11 +12,16 @@ def make_item(**kw):
     return NewsItem(**{**fields, **kw})
 
 
-def make_digest(count=5):
+def make_digest(count=5, cover=False):
     entries = [DigestEntry(item=make_item(link=f"https://example.com/{i}", date="28 Eylül 2026"),
                            title=f"Haber {i}", category="Yeni Model", summary=f"Özet {i}.")
                for i in range(1, count + 1)]
-    return Digest(intro="Haftanın özeti.", entries=entries)
+    digest = Digest(intro="Haftanın özeti.", entries=entries, date="29 Eylül 2026")
+    if cover:
+        digest.headline = "Açık kaynak arayı kapattı mı?"
+        digest.tldr = ["Birinci madde.", "İkinci madde.", "Üçüncü madde."]
+        digest.stat = Stat(value="10 GW", label="Rekor çip siparişi.")
+    return digest
 
 
 @pytest.fixture(autouse=True)

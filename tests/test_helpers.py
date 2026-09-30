@@ -41,7 +41,8 @@ def test_prompt_lists_numbered_items_and_asks_for_json():
     prompt = build_prompt(ITEMS[:2])
     assert "[1] Kaynak: s\nBaşlık: Ham 1\n" in prompt
     assert "[2] Kaynak: s\nBaşlık: Ham 2\nYayın Tarihi: 2 Eylül 2026\nLink: https://example.com/2\nÖzet: x\n" in prompt
-    assert '{"intro": "...", "items": [{"id": 3,' in prompt
+    assert '{"headline": "...", "intro": "...", "tldr": ["...", "...", "..."],' in prompt
+    assert '"items": [{"id": 3,' in prompt
     assert "Güvenlik & Olay" in prompt
 
 
@@ -111,3 +112,31 @@ def test_parse_rejects_empty_text(field):
 def test_parse_rejects_missing_intro():
     with pytest.raises(ValueError, match="intro"):
         parse_digest(answer(intro=""), ITEMS)
+
+
+# --- kapak alanları (manşet, tldr, rakam) ---
+
+def test_parse_reads_cover_fields():
+    digest = parse_digest(answer(headline="  Açık kaynak arayı kapattı mı? ",
+                                 tldr=["Birinci madde.", "İkinci madde.", "Üçüncü madde.", "Fazla madde."],
+                                 stat={"value": "10 GW", "label": "Rekor çip siparişi."}), ITEMS)
+    assert digest.headline == "Açık kaynak arayı kapattı mı?"
+    assert digest.tldr == ["Birinci madde.", "İkinci madde.", "Üçüncü madde."]
+    assert (digest.stat.value, digest.stat.label) == ("10 GW", "Rekor çip siparişi.")
+
+
+def test_parse_without_cover_fields_still_works():
+    digest = parse_digest(answer(), ITEMS)
+    assert (digest.headline, digest.tldr, digest.stat) == (None, [], None)
+
+
+@pytest.mark.parametrize("overrides", [
+    {"headline": 42}, {"headline": "x" * 200},
+    {"tldr": "tek metin"}, {"tldr": ["Sadece bir madde."]}, {"tldr": ["", None, 3]},
+    {"stat": None}, {"stat": "10 GW"}, {"stat": {"value": "çok", "label": "Sayı yok."}},
+    {"stat": {"value": "10 GW", "label": ""}}, {"stat": {"value": "1" * 40, "label": "Çok uzun."}},
+])
+def test_parse_drops_bad_cover_fields_instead_of_failing(overrides):
+    digest = parse_digest(answer(**overrides), ITEMS)
+    assert len(digest.entries) == config.MIN_DIGEST_CARDS
+    assert (digest.headline, digest.tldr, digest.stat) == (None, [], None)
