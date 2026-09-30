@@ -1,6 +1,9 @@
 """Reddit RSS yedeğinin ağ gerektirmeyen testleri (requests.get sahte yanıtlarla değiştirilir)."""
 
-import main
+import requests
+
+from newsletter import config
+from newsletter.sources import reddit
 
 
 class FakeResponse:
@@ -34,50 +37,50 @@ def test_rss_caps_posts_per_subreddit_in_one_request(monkeypatch):
         calls.append(url)
         return FakeResponse(200, feed)
 
-    monkeypatch.setattr(main.requests, "get", fake_get)
-    items = main._reddit_items_rss(SUBS, per_sub=5)
+    monkeypatch.setattr(requests, "get", fake_get)
+    items = reddit._items_rss(SUBS, per_sub=5)
 
     assert len(calls) == 1
     assert "r/ChatGPT+singularity+LocalLLaMA/top/.rss" in calls[0]
-    sources = [item["source"] for item in items]
+    sources = [item.source for item in items]
     assert sources.count("Reddit r/ChatGPT") == 5
     assert sources.count("Reddit r/singularity") == 1
     assert sources.count("Reddit r/LocalLLaMA") == 1
-    assert items[0]["date"] == "28 Eylül 2026"
-    assert "submitted by" not in items[0]["summary"]
-    assert "<p>" not in items[0]["summary"]
+    assert items[0].date == "28 Eylül 2026"
+    assert "submitted by" not in items[0].summary
+    assert "<p>" not in items[0].summary
 
 
 def test_rss_retries_once_on_429(monkeypatch):
     responses = [FakeResponse(429, headers={"Retry-After": "1"}), FakeResponse(200, make_feed([make_entry("ChatGPT", 1)]))]
     sleeps = []
-    monkeypatch.setattr(main.requests, "get", lambda url, **kwargs: responses.pop(0))
-    monkeypatch.setattr(main.time, "sleep", sleeps.append)
+    monkeypatch.setattr(requests, "get", lambda url, **kwargs: responses.pop(0))
+    monkeypatch.setattr(reddit.time, "sleep", sleeps.append)
 
-    items = main._reddit_items_rss(SUBS)
+    items = reddit._items_rss(SUBS)
 
     assert sleeps == [1]
     assert len(items) == 1
 
 
 def test_rss_gives_up_after_second_429(monkeypatch):
-    monkeypatch.setattr(main.requests, "get", lambda url, **kwargs: FakeResponse(429))
-    monkeypatch.setattr(main.time, "sleep", lambda s: None)
+    monkeypatch.setattr(requests, "get", lambda url, **kwargs: FakeResponse(429))
+    monkeypatch.setattr(reddit.time, "sleep", lambda s: None)
 
-    assert main._reddit_items_rss(SUBS) == []
+    assert reddit._items_rss(SUBS) == []
 
 
 def test_fetch_without_credentials_uses_rss_only(monkeypatch):
-    monkeypatch.setattr(main, "REDDIT_CLIENT_ID", None)
-    monkeypatch.setattr(main, "REDDIT_CLIENT_SECRET", None)
+    monkeypatch.setattr(config, "REDDIT_CLIENT_ID", None)
+    monkeypatch.setattr(config, "REDDIT_CLIENT_SECRET", None)
     calls = []
 
     def fake_get(url, **kwargs):
         calls.append(url)
         return FakeResponse(200, make_feed([make_entry("singularity", 1)]))
 
-    monkeypatch.setattr(main.requests, "get", fake_get)
-    items = main.fetch_reddit_viral_ai()
+    monkeypatch.setattr(requests, "get", fake_get)
+    items = reddit.fetch()
 
     assert len(calls) == 1 and ".rss" in calls[0]
-    assert items[0]["source"] == "Reddit r/singularity"
+    assert items[0].source == "Reddit r/singularity"

@@ -3,16 +3,16 @@
 import pytest
 
 import archive
-import main
+from newsletter import app, config, llm, mailer, subscribers
+from newsletter.render import render_html
+from tests.conftest import make_digest, make_item
 
-CARDS = "".join(f'<div><b>Haber {i}</b><a href="https://example.com/{i}">Kaynağa Git →</a></div>' for i in range(6))
-ISSUE = f"<html><head><title>x</title></head><body>{CARDS}</body></html>"
+ISSUE = render_html(make_digest())
 
 
-def test_sanitize_removes_personal_footer_from_sent_email(monkeypatch):
-    monkeypatch.setattr(main, "WEB_APP_URL", "https://script.google.com/macros/s/abc/exec")
-    monkeypatch.setattr(main, "EMAIL_SENDER", "sender@example.com")
-    msg = main.build_message(ISSUE, {"email": "okur@example.com", "token": "gizli-token"}, "konu")
+def test_sanitize_removes_personal_footer_from_sent_email(set_config):
+    set_config(WEB_APP_URL="https://script.google.com/macros/s/abc/exec", EMAIL_SENDER="sender@example.com")
+    msg = mailer.build_message(make_digest(), {"email": "okur@example.com", "token": "gizli-token"}, "konu")
     sent_html = msg.get_payload()[1].get_payload(decode=True).decode("utf-8")
     assert "gizli-token" in sent_html
 
@@ -66,43 +66,39 @@ def test_publish_rejects_bad_date(tmp_path):
 
 
 @pytest.fixture
-def run(monkeypatch, tmp_path):
-    item = {"source": "s", "title": "t", "date": "d", "link": "l", "summary": "x"}
-    for name in ["fetch_arxiv_papers", "fetch_hacker_news_ai", "fetch_github_trending_ai",
-                 "fetch_company_blogs", "fetch_reddit_viral_ai", "fetch_tech_media_ai"]:
-        monkeypatch.setattr(main, name, lambda: [item])
-    monkeypatch.setattr(main, "DRY_RUN", False)
-    monkeypatch.setattr(main, "PREVIEW", False)
-    monkeypatch.setattr(main, "SHEETS_ERROR", None)
-    monkeypatch.setattr(main, "check_config", lambda: [])
-    monkeypatch.setattr(main, "generate_digest_with_opencode", lambda raw: ISSUE)
-    monkeypatch.setattr(main, "get_subscribers", lambda: [{"email": "a@example.com", "token": "t"}])
-    monkeypatch.setattr(main, "get_preview_recipients", lambda: [{"email": "me@example.com", "token": ""}])
-    monkeypatch.setattr(main, "PREVIEW_FILE", str(tmp_path / "newsletter.html"))
-    monkeypatch.setattr(main, "ARCHIVE_FILE", str(tmp_path / "issue.html"))
-    monkeypatch.setattr(main, "send_newsletter_to_all", lambda html, recipients, subject=None: [])
+def run(set_config, fake_sources, monkeypatch, tmp_path):
+    fake_sources([make_item()])
+    set_config(DRY_RUN=False, PREVIEW=False, PREVIEW_FILE=str(tmp_path / "newsletter.html"),
+               ARCHIVE_FILE=str(tmp_path / "issue.html"))
+    monkeypatch.setattr(config, "check_config", lambda: [])
+    monkeypatch.setattr(llm, "generate_digest", lambda items: make_digest())
+    monkeypatch.setattr(subscribers, "get_subscribers", lambda: ([{"email": "a@example.com", "token": "t"}], None))
+    monkeypatch.setattr(subscribers, "get_preview_recipients", lambda: [{"email": "me@example.com", "token": ""}])
+    monkeypatch.setattr(mailer, "send_all", lambda digest, recipients, subject=None: [])
     return tmp_path / "issue.html"
 
 
-def test_real_send_saves_issue_for_archive(run):
-    main.main()
-    assert run.read_text(encoding="utf-8") == ISSUE
+def test_real_send_saves_shared_issue_for_archive(run):
+    app.main()
+    saved = run.read_text(encoding="utf-8")
+    assert saved == ISSUE
+    assert "token" not in saved and "a@example.com" not in saved
 
 
-def test_preview_does_not_save_issue_for_archive(monkeypatch, run):
-    monkeypatch.setattr(main, "PREVIEW", True)
-    main.main()
+def test_preview_does_not_save_issue_for_archive(set_config, run):
+    set_config(PREVIEW=True)
+    app.main()
     assert not run.exists()
 
 
-def test_dry_run_does_not_save_issue_for_archive(monkeypatch, run):
-    monkeypatch.setattr(main, "DRY_RUN", True)
-    main.main()
+def test_dry_run_does_not_save_issue_for_archive(set_config, run):
+    set_config(DRY_RUN=True)
+    app.main()
     assert not run.exists()
 
 
 def test_no_recipients_does_not_save_issue_for_archive(monkeypatch, run):
-    monkeypatch.setattr(main, "send_newsletter_to_all", lambda html, recipients, subject=None: None)
+    monkeypatch.setattr(mailer, "send_all", lambda digest, recipients, subject=None: None)
     with pytest.raises(SystemExit):
-        main.main()
+        app.main()
     assert not run.exists()
