@@ -1,4 +1,5 @@
 import os
+import uuid
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -57,11 +58,16 @@ def generate_digest_with_opencode(raw_data):
     """OpenCode Go API'sini kullanarak HTML bülteni üretir."""
     print("OpenCode Go üzerinden model bülteni hazırlıyor...")
 
-    # OpenCode Go OpenAI-uyumlu endpoint yapılandırması
+    # OpenCode Go'nun zorunlu kıldığı session ID formatı (ses_ + 32 karakter hex)
+    session_id = f"ses_{uuid.uuid4().hex}"
+
     client = OpenAI(
         base_url="https://opencode.ai/zen/go/v1",
         api_key=OPENCODE_API_KEY,
-        default_headers={"User-Agent": "newsletter-agent/1.0"}
+        default_headers={
+            "User-Agent": "newsletter-agent/1.0",
+            "x-opencode-session": session_id
+        }
     )
 
     prompt = f"""
