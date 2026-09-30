@@ -32,8 +32,8 @@ jobs:
 
       - name: Derleme ve import kontrolü
         run: |
-          python -m py_compile main.py
-          python -c "import main"
+          python -m py_compile main.py archive.py
+          python -c "import main, archive"
 
       - name: Testler (pytest)
         run: pytest -q

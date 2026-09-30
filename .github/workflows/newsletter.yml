@@ -15,9 +15,17 @@ on:
         type: boolean
         default: false
 
+# Aynı anda iki çalışma gh-pages dalına yazmasın
+concurrency:
+  group: newsletter
+  cancel-in-progress: false
+
 jobs:
   build-and-send:
     runs-on: ubuntu-latest
+    permissions:
+      # Arşiv sayfalarını gh-pages dalına yazmak için
+      contents: write
 
     steps:
       - name: Depoyu Klonla
@@ -56,3 +64,25 @@ jobs:
           name: newsletter-preview
           path: newsletter.html
           if-no-files-found: ignore
+
+      # Sadece abonelere gerçekten gönderilen sayılar arşive girer:
+      # main.py issue.html dosyasını önizleme ve dry_run'da yazmaz.
+      - name: Web Arşivine Ekle (GitHub Pages)
+        if: always() && !inputs.dry_run && !inputs.preview && hashFiles('issue.html') != ''
+        run: |
+          if git fetch --depth=1 origin +refs/heads/gh-pages:refs/remotes/origin/gh-pages; then
+            git worktree add -B gh-pages site origin/gh-pages
+          else
+            git worktree add --orphan -b gh-pages site
+          fi
+          python archive.py issue.html site
+          cd site
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Arşivde değişiklik yok."
+            exit 0
+          fi
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -m "Arşiv: $(date -u +%Y-%m-%d) sayısı"
+          git push origin gh-pages

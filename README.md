@@ -66,6 +66,16 @@ The workflow is [`.github/workflows/newsletter.yml`](.github/workflows/newslette
 > [!WARNING]
 > A manual run with both `dry_run` and `preview` off sends the real newsletter to every active subscriber. Use `dry_run` to test the sources and `preview` to see the finished email.
 
+## Web archive
+
+Every issue that is actually sent to subscribers is also published to a public web archive on GitHub Pages: an index page listing all issues (newest first) and one page per issue at `issues/YYYY-MM-DD.html`. Preview and `dry_run` runs never publish.
+
+How it works: after a real send, `main.py` saves the shared newsletter HTML to `issue.html`. The workflow's *Web Arşivine Ekle* step then runs [`archive.py`](archive.py) on a checkout of the `gh-pages` branch (created on the first run) and pushes the result. Before publishing, `archive.py` removes the subscriber footer, any link carrying an unsubscribe action, `token=` or `email=` parameter, `mailto:` links, scripts and inline event handlers, so no subscriber data reaches the web. Re-running on the same day replaces that day's page.
+
+One-time setup, after the first real send has created the `gh-pages` branch: Settings → Pages → *Build and deployment* → Source: *Deploy from a branch* → Branch: `gh-pages`, folder `/ (root)` → Save. The site is then at `https://<user>.github.io/ai-weekly-news/`. GitHub Pages on a private repository needs a paid plan (GitHub Pro or higher), and the published site is public either way.
+
+To build the archive locally: `python archive.py newsletter.html site` writes `site/index.html` and today's issue page.
+
 ## Secrets
 
 Set these under *Settings → Secrets and variables → Actions*. The workflow passes them to `main.py` as environment variables of the same name.
