@@ -3,6 +3,8 @@ import uuid
 import json
 import time
 import re
+import sys
+from urllib.parse import urlencode
 from datetime import datetime, timezone, timedelta
 import smtplib
 from email.mime.multipart import MIMEMultipart
@@ -34,7 +36,12 @@ SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID")
 WEB_APP_URL = os.environ.get("WEB_APP_URL", "")
 MODEL_NAME = os.environ.get("OPENCODE_MODEL", "deepseek-v4.1-flash")
 
-# Opsiyonel: Reddit uygulama kimlik bilgileri (yoksa top.json -> RSS denenir)
+# LLM çağrısı için yeniden deneme ayarları
+LLM_MAX_ATTEMPTS = 3
+LLM_BACKOFF_SECONDS = 10  # 10s, 20s, ...
+MIN_DIGEST_CARDS = 5
+
+# Opsiyonel: Reddit uygulama kimlik bilgileri (yoksa birleşik RSS akışı kullanılır)
 REDDIT_CLIENT_ID = os.environ.get("REDDIT_CLIENT_ID")
 REDDIT_CLIENT_SECRET = os.environ.get("REDDIT_CLIENT_SECRET")
 # "true" ise sadece veri toplanır; model çağrılmaz, e-posta gönderilmez
@@ -440,24 +447,61 @@ Bu verileri titizlikle filtreleyerek haftanın EN ÖNEMLİ 10 gelişmesini seç.
 6. Sadece geçerli `<html><body style="background-color: #f8fafc; padding: 20px; font-family: sans-serif;">...</body></html>` kodunu döndür, markdown tırnakları (```html) KULLANMA.
 """
 
-    response = client.chat.completions.create(
-        model=MODEL_NAME,
-        temperature=0.2,
-        messages=[
-            {"role": "system", "content": "Sen profesyonel bir teknoloji bülteni editörüsün."},
-            {"role": "user", "content": prompt}
-        ]
-    )
+    messages = [
+        {"role": "system", "content": "Sen profesyonel bir teknoloji bülteni editörüsün."},
+        {"role": "user", "content": prompt}
+    ]
 
-    content = response.choices[0].message.content.strip()
+    last_error = None
+    for attempt in range(1, LLM_MAX_ATTEMPTS + 1):
+        try:
+            response = client.chat.completions.create(
+                model=MODEL_NAME,
+                temperature=0.2,
+                messages=messages,
+                timeout=180,
+            )
+            content = strip_code_fences(response.choices[0].message.content or "")
+            validate_digest_html(content)
+            print(f"✓ Bülten HTML'i doğrulandı (deneme {attempt}/{LLM_MAX_ATTEMPTS}).")
+            return content
+        except Exception as e:
+            last_error = e
+            print(f"[UYARI] Bülten üretimi başarısız (deneme {attempt}/{LLM_MAX_ATTEMPTS}): {e}")
+            if attempt < LLM_MAX_ATTEMPTS:
+                wait = LLM_BACKOFF_SECONDS * (2 ** (attempt - 1))
+                print(f"{wait} saniye sonra tekrar denenecek...")
+                time.sleep(wait)
+
+    raise RuntimeError(f"Bülten {LLM_MAX_ATTEMPTS} denemede üretilemedi: {last_error}")
+
+
+def strip_code_fences(content):
+    """Modelin eklediği ```html tırnaklarını temizler."""
+    content = content.strip()
     if content.startswith("```html"):
         content = content[7:]
     elif content.startswith("```"):
         content = content[3:]
     if content.endswith("```"):
         content = content[:-3]
-
     return content.strip()
+
+
+def validate_digest_html(content):
+    """Bozuk veya eksik HTML'in abonelere gitmesini engellemek için temel kontroller."""
+    lower = content.lower()
+    if len(content) < 2000:
+        raise ValueError(f"HTML çok kısa ({len(content)} karakter)")
+    if "<html" not in lower or "</html>" not in lower:
+        raise ValueError("<html> veya </html> etiketi eksik")
+    if "<body" not in lower or "</body>" not in lower:
+        raise ValueError("<body> veya </body> etiketi eksik (iptal bağlantısı eklenemez)")
+    if lower.index("<body") > lower.index("</body>"):
+        raise ValueError("<body> etiketleri sırasız")
+    link_count = len(re.findall(r'<a\s[^>]*href="https?://', content, re.IGNORECASE))
+    if link_count < MIN_DIGEST_CARDS:
+        raise ValueError(f"Yalnızca {link_count} kaynak bağlantısı var (en az {MIN_DIGEST_CARDS} bekleniyor)")
 
 
 # ==========================================
@@ -479,7 +523,11 @@ def send_newsletter_to_all(html_content, recipients):
             token = sub.get("token", "")
             
             try:
-                unsub_url = f"{WEB_APP_URL}?action=unsubscribe&email={email}&token={token}" if WEB_APP_URL and token else "#"
+                if WEB_APP_URL and token:
+                    query = urlencode({"action": "unsubscribe", "email": email, "token": token})
+                    unsub_url = f"{WEB_APP_URL}?{query}"
+                else:
+                    unsub_url = "#"
                 
                 footer_html = f"""
                 <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 30px 0 15px 0;">
@@ -538,7 +586,13 @@ def main():
     for idx, item in enumerate(all_data, 1):
         raw_text += f"[{idx}] Kaynak: {item['source']}\nBaşlık: {item['title']}\nYayın Tarihi: {item['date']}\nLink: {item['link']}\nÖzet: {item['summary']}\n\n"
 
-    newsletter_html = generate_digest_with_opencode(raw_text)
+    try:
+        newsletter_html = generate_digest_with_opencode(raw_text)
+    except Exception as e:
+        # Bozuk bülten göndermek yerine çalışmayı hata ile bitir
+        print(f"[HATA] {e}. E-posta gönderilmedi.")
+        sys.exit(1)
+
     recipients = get_subscribers()
     send_newsletter_to_all(newsletter_html, recipients)
 
