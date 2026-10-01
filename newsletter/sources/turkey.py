@@ -17,7 +17,6 @@ log = logging.getLogger(__name__)
 # (ad, adres, sadece anahtar kelimeli haberler mi)
 FEEDS = [
     ("Webrazzi", "https://webrazzi.com/kategori/yapay-zeka/feed/", False),
-    ("Webrazzi", "https://webrazzi.com/kategori/girisim/feed/", False),
     ("Egirişim", "https://egirisim.com/feed/", True),
     ("Webtekno", "https://www.webtekno.com/rss.xml", True),
 ]

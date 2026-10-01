@@ -41,7 +41,7 @@ Output goes through Python's `logging` module to standard output, one plain line
 | 4 | Company blogs | 3 latest posts each from OpenAI, Google DeepMind, Anthropic (via an RSSHub mirror) and Hugging Face |
 | 5 | Reddit | Top posts of the week from r/ChatGPT, r/singularity and r/LocalLLaMA |
 | 6 | Tech media | 4 latest posts each from The Verge (AI section) and Ars Technica |
-| 7 | Turkish tech media | Up to 5 posts from the last 8 days each from Webrazzi (AI and startup sections), Egirişim and Webtekno; the general feeds keep only AI, startup and investment stories. These are the only candidates for the "Türkiye'den" section |
+| 7 | Turkish tech media | Up to 5 posts from the last 8 days each from Webrazzi (AI section), Egirişim and Webtekno; the general feeds keep only AI, startup and investment stories. These are the only candidates for the "Türkiye'den" section |
 
 **Reddit** blocks unauthenticated JSON requests from data-centre IPs such as GitHub Actions runners. If `REDDIT_CLIENT_ID` and `REDDIT_CLIENT_SECRET` are set, the script uses Reddit's app-only OAuth API and keeps posts with more than 300 upvotes. Otherwise it falls back to a single combined RSS request (`r/ChatGPT+singularity+LocalLLaMA/top/.rss`), keeps up to 5 posts per subreddit, and retries once after an HTTP 429.
 
