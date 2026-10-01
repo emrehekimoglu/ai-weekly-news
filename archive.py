@@ -20,8 +20,8 @@ TR_MONTHS = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
              "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"]
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
-# Aboneye özel veri taşıyabilecek bağlantılar (iptal, token, e-posta parametresi, mailto)
-_PERSONAL_HREF = re.compile(r"(action=unsubscribe|[?&](token|email)=|^mailto:)", re.IGNORECASE)
+# Aboneye özel veri taşıyabilecek bağlantılar (iptal, oy, token, e-posta parametresi, mailto)
+_PERSONAL_HREF = re.compile(r"(action=(unsubscribe|vote)|[?&](token|email)=|^mailto:)", re.IGNORECASE)
 _ANCHOR = re.compile(r"<a\b[^>]*>.*?</a>", re.IGNORECASE | re.DOTALL)
 _HREF = re.compile(r"""href\s*=\s*(["'])(.*?)\1""", re.IGNORECASE | re.DOTALL)
 
