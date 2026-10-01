@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from typing import Callable
 
 from newsletter.models import NewsItem
-from newsletter.sources import arxiv, blogs, github, hackernews, media, reddit
+from newsletter.sources import arxiv, blogs, github, hackernews, media, reddit, turkey
 
 log = logging.getLogger(__name__)
 
@@ -27,6 +27,7 @@ SOURCES = [
     Source("Şirket blogları", "Şirket blogları (OpenAI, DeepMind, Anthropic, Hugging Face)", blogs.fetch),
     Source("Reddit", "Reddit viral AI olayları ve tartışmaları", reddit.fetch),
     Source("Teknoloji basını", "Bağımsız teknoloji basını (The Verge, Ars Technica)", media.fetch),
+    Source("Türkiye", "Türk teknoloji basını (Webrazzi, Egirişim, Webtekno)", turkey.fetch),
 ]
 
 
