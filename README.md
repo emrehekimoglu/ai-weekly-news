@@ -83,6 +83,7 @@ If the sheet is configured but cannot be read, or has no `AKTIF` rows, the newsl
 - **Body** is `multipart/alternative`: a plain-text version from `newsletter.txt.j2`, followed by the HTML version from `newsletter.html.j2`. Both are rendered per subscriber so the unsubscribe link is theirs. Text from the model is HTML-escaped.
 - **Unsubscribe**: a footer link and a `List-Unsubscribe` header, both pointing to `WEB_APP_URL?action=unsubscribe&email=…&token=…`. The unsubscribe web app itself is not in this repository. If `WEB_APP_URL` or the subscriber's token is missing, the footer link is `#` and the header is left out. The one-click `List-Unsubscribe-Post` header is not sent, because it only works if the web app accepts a POST request.
 - **Feedback**: each story has small 👍 👎 links, and a *Bu sayı nasıldı?* box above the footer rates the whole issue (the plain-text part has only the issue vote). See [Feedback links](#feedback-links).
+- **Sharing**: the footer links to the issue's web archive page (`https://<owner>.github.io/<repo>/issues/YYYY-MM-DD.html`, derived from `GITHUB_REPOSITORY`; override with an `ARCHIVE_URL` env value). Each archive page ends with X, LinkedIn, WhatsApp, Telegram and email share links that carry only that public page address.
 - **Logo**: the template uses an inline CSS badge with an emoji instead of an external image, so there is nothing for mail clients to block.
 
 To change the design, edit [`newsletter/templates/newsletter.html.j2`](newsletter/templates/newsletter.html.j2) (and the `.txt.j2` twin), then check it with a `preview` run.
@@ -132,6 +133,7 @@ At startup (except in `dry_run`) the run stops with a clear error if any "Yes" s
 | `SPREADSHEET_ID` | For the Sheet | ID of the subscriber Google Sheet (shared with the service account) |
 | `WEB_APP_URL` | For unsubscribe links | Base URL of the unsubscribe web app |
 | `EMAIL_RECEIVER` | No | Fallback single recipient when no other subscriber list is available |
+| `SIGNUP_URL` | No | Signup form link (e.g. the Google Form). Adds a "forward to a friend / subscribe" box to the email and a subscribe link to the web archive; hidden when unset |
 | `PREVIEW_EMAIL` | No | Where `preview` runs send the newsletter (falls back to `EMAIL_RECEIVER`) |
 | `REDDIT_CLIENT_ID` | No | Reddit app ID; enables the OAuth path |
 | `REDDIT_CLIENT_SECRET` | No | Reddit app secret; enables the OAuth path |

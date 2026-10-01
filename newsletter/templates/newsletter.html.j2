@@ -107,7 +107,7 @@
   {% endif %}
 
   {% if feedback_url %}
-  <tr><td class="px" style="padding: 8px 40px 18px 40px;">
+  <tr><td class="px" style="padding: 8px 40px 22px 40px;">
     <table role="presentation" class="tldr" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f3f5f9" style="background-color: #f3f5f9; border-radius: 8px;"><tr>
       <td class="ink" style="padding: 16px 22px; font: 700 15px/22px {{ serif }}; color: #10141c;">Bu sayı nasıldı?</td>
       <td align="right" style="padding: 12px 22px 12px 0; white-space: nowrap;">
@@ -119,9 +119,18 @@
   </td></tr>
   {% endif %}
 
+  {% if signup_url %}
+  <tr><td class="px" style="padding: 8px 40px 22px 40px;">
+    <table role="presentation" class="tldr" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f3f5f9" style="background-color: #f3f5f9; border-radius: 8px;"><tr><td style="padding: 18px 22px;">
+      <div class="ink" style="font: 700 17px/24px {{ serif }}; color: #10141c;">Bu sayıyı beğendiniz mi? Bir arkadaşınıza iletin.</div>
+      <div class="soft" style="font: 14px/22px {{ sans }}; color: #454d5c; margin-top: 4px;">Bu e-posta size iletildiyse, yeni sayılar her pazartesi doğrudan size gelsin: <a href="{{ signup_url }}" class="accent" style="font-weight: 700; color: #2447d6; text-decoration: underline;">ücretsiz abone olun &rarr;</a></div>
+    </td></tr></table>
+  </td></tr>
+  {% endif %}
+
   <tr><td class="px" style="padding: 0 40px 30px 40px;">
     <hr class="rule-strong" style="border: none; border-top: 3px solid #10141c; margin: 10px 0 18px 0;">
-    <p class="faint" style="font: 12px/19px {{ sans }}; color: #8a93a6; margin: 0;">Bu bülteni AI &amp; Teknoloji Radarı'na abone olduğunuz için alıyorsunuz. Abonelikten ayrılmak isterseniz <a href="{{ unsubscribe_url or '#' }}" class="accent" style="color: #2447d6; text-decoration: underline;">buraya tıklayabilirsiniz</a>.</p>
+    <p class="faint" style="font: 12px/19px {{ sans }}; color: #8a93a6; margin: 0;">Bu bülteni AI &amp; Teknoloji Radarı'na abone olduğunuz için alıyorsunuz. Abonelikten ayrılmak isterseniz <a href="{{ unsubscribe_url or '#' }}" class="accent" style="color: #2447d6; text-decoration: underline;">buraya tıklayabilirsiniz</a>.{% if web_url %} Bu sayıyı <a href="{{ web_url }}" class="accent" style="color: #2447d6; text-decoration: underline;">web'de okuyabilir</a> ve bağlantısını paylaşabilirsiniz.{% endif %}</p>
   </td></tr>
 
 </table>

@@ -86,7 +86,7 @@ def run(set_config, fake_sources, monkeypatch, tmp_path):
 def test_real_send_saves_shared_issue_for_archive(run):
     app.main()
     saved = run.read_text(encoding="utf-8")
-    assert saved == ISSUE
+    assert saved == render_html(make_digest())
     assert "token" not in saved and "a@example.com" not in saved
 
 
