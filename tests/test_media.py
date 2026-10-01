@@ -49,3 +49,12 @@ def test_blocked_feed_does_not_stop_others(monkeypatch):
     items = media.fetch()
 
     assert {i.source for i in items} == {"Ars Technica"}
+
+
+def test_unescapes_html_entities_in_titles(monkeypatch):
+    feed = (b'<?xml version="1.0"?><feed xmlns="http://www.w3.org/2005/Atom"><entry>'
+            b"<title>Here&amp;#8217;s what AI leaders say</title><link href=\"https://example.com/a\"/>"
+            b"<updated>2026-09-28T10:00:00+00:00</updated></entry></feed>")
+    monkeypatch.setattr(requests, "get", lambda url, **kwargs: FakeResponse(200, feed))
+
+    assert media.fetch()[0].title == "Here\u2019s what AI leaders say"

@@ -4,6 +4,7 @@ The Verge'ün CDN'i requests'in varsayılan "python-requests/x" User-Agent'ını
 (X-Forbidden) ile reddediyor; tanımlayıcı bir User-Agent ile GitHub Actions'tan da erişilebiliyor.
 """
 
+import html
 import logging
 
 from newsletter.models import NewsItem
@@ -25,7 +26,7 @@ def fetch():
             for entry in fetch_feed(url, headers=HEADERS).entries[:4]:
                 items.append(NewsItem(
                     source=name,
-                    title=entry.title,
+                    title=html.unescape(entry.title),  # The Verge başlıkları &#8217; gibi varlıklarla geliyor
                     date=entry_date(entry),
                     link=entry.link,
                     summary=clean(entry.get("summary", ""), 350),
