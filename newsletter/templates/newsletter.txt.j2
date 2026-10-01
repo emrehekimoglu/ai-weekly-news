@@ -24,8 +24,15 @@ HAFTANIN RAKAMI: {{ digest.stat.value }}
 {{ entry.summary }}
 Kaynağa Git → {{ entry.item.link }}
 {% endfor %}
+{% if signup_url %}
+
+Bu sayıyı beğendiniz mi? Bir arkadaşınıza iletin.
+Size iletildiyse ücretsiz abone olun: {{ signup_url }}
+{% endif %}
 
 ---
 Bu bülteni AI & Teknoloji Radarı'na abone olduğunuz için alıyorsunuz.
+{% if web_url %}Web'de okuyun ve paylaşın: {{ web_url }}
+{% endif %}
 {% if unsubscribe_url %}Abonelikten ayrılmak için: {{ unsubscribe_url }}
 {% endif %}
