@@ -3,6 +3,8 @@
 {% set sans = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" %}
 {% set serif = "Georgia, 'Times New Roman', serif" %}
 {% set lead = digest.entries[0] %}
+{#- Habere 👍/👎: sadece abonelere giden e-postada (feedback_url verildiğinde) çıkar, arşivde çıkmaz. -#}
+{% macro story_votes(story) %}{% if feedback_url %}&nbsp; <a href="{{ feedback_url(story, 'up') }}" title="Faydalı" style="font-size: 15px; padding: 0 3px; text-decoration: none;">👍</a>&nbsp;<a href="{{ feedback_url(story, 'down') }}" title="Pek değil" style="font-size: 15px; padding: 0 3px; text-decoration: none;">👎</a>{% endif %}{% endmacro %}
 <!DOCTYPE html>
 <html lang="tr">
 <head>
@@ -72,7 +74,7 @@
     <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin: 18px 0 8px 0;"><tr>
       <td class="btn" bgcolor="#2447d6" style="background-color: #2447d6; border-radius: 6px;"><a href="{{ lead.item.link }}" style="display: inline-block; padding: 11px 20px; font: 700 14px {{ sans }}; color: #ffffff; text-decoration: none;">Haberin tamamı &rarr;</a></td>
     </tr></table>
-    <div class="faint" style="font: 12px/18px {{ sans }}; color: #8a93a6;">{{ lead.item.source }} · {{ lead.item.date }}</div>
+    <div class="faint" style="font: 12px/18px {{ sans }}; color: #8a93a6;">{{ lead.item.source }} · {{ lead.item.date }}{{ story_votes(1) }}</div>
   </td></tr>
 
   {% if digest.stat %}
@@ -97,11 +99,24 @@
         <div class="accent" style="font: 700 11px/14px {{ sans }}; letter-spacing: 1.5px; color: #2447d6; text-transform: uppercase;">{{ entry.category }}</div>
         <div class="ink" style="font: 700 19px/25px {{ serif }}; color: #10141c; margin: 6px 0;">{{ entry.title }}</div>
         <div class="soft" style="font: 15px/23px {{ sans }}; color: #454d5c;">{{ entry.summary }}</div>
-        <div class="faint" style="font: 12px/18px {{ sans }}; color: #8a93a6; margin-top: 8px;"><a href="{{ entry.item.link }}" class="accent" style="font-weight: 700; color: #2447d6; text-decoration: none;">Devamı &rarr;</a>&nbsp; {{ entry.item.source }} · {{ entry.item.date }}</div>
+        <div class="faint" style="font: 12px/18px {{ sans }}; color: #8a93a6; margin-top: 8px;"><a href="{{ entry.item.link }}" class="accent" style="font-weight: 700; color: #2447d6; text-decoration: none;">Devamı &rarr;</a>&nbsp; {{ entry.item.source }} · {{ entry.item.date }}{{ story_votes(loop.index + 1) }}</div>
       </td>
     </tr></table>
   </td></tr>
   {% endfor %}
+  {% endif %}
+
+  {% if feedback_url %}
+  <tr><td class="px" style="padding: 8px 40px 18px 40px;">
+    <table role="presentation" class="tldr" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f3f5f9" style="background-color: #f3f5f9; border-radius: 8px;"><tr>
+      <td class="ink" style="padding: 16px 22px; font: 700 15px/22px {{ serif }}; color: #10141c;">Bu sayı nasıldı?</td>
+      <td align="right" style="padding: 12px 22px 12px 0; white-space: nowrap;">
+        <a href="{{ feedback_url(0, 'up') }}" class="accent" style="display: inline-block; padding: 7px 14px; border: 1px solid #2447d6; border-radius: 6px; font: 700 13px {{ sans }}; color: #2447d6; text-decoration: none;">👍 Beğendim</a>&nbsp;
+        <a href="{{ feedback_url(0, 'down') }}" class="accent" style="display: inline-block; padding: 7px 14px; border: 1px solid #2447d6; border-radius: 6px; font: 700 13px {{ sans }}; color: #2447d6; text-decoration: none;">👎 Pek değil</a>
+      </td>
+    </tr></table>
+    <div class="faint" style="font: 12px/18px {{ sans }}; color: #8a93a6; margin-top: 8px;">Haberlerin yanındaki 👍 👎 ile hangi konuların işinize yaradığını da söyleyebilirsiniz. Oylar isimsiz kaydedilir.</div>
+  </td></tr>
   {% endif %}
 
   <tr><td class="px" style="padding: 0 40px 30px 40px;">

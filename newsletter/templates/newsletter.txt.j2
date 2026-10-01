@@ -24,6 +24,12 @@ HAFTANIN RAKAMI: {{ digest.stat.value }}
 {{ entry.summary }}
 Kaynağa Git → {{ entry.item.link }}
 {% endfor %}
+{% if feedback_url %}
+
+Bu sayı nasıldı?
+👍 Beğendim: {{ feedback_url(0, 'up') }}
+👎 Pek değil: {{ feedback_url(0, 'down') }}
+{% endif %}
 
 ---
 Bu bülteni AI & Teknoloji Radarı'na abone olduğunuz için alıyorsunuz.
