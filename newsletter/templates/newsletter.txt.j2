@@ -24,6 +24,17 @@ HAFTANIN RAKAMI: {{ digest.stat.value }}
 {{ entry.summary }}
 Kaynağa Git → {{ entry.item.link }}
 {% endfor %}
+{% if digest.turkiye %}
+
+TÜRKİYE'DEN
+{% for entry in digest.turkiye %}
+
+• {{ entry.title }}
+{{ entry.item.source }} • {{ entry.item.date }}
+{{ entry.summary }}
+Kaynağa Git → {{ entry.item.link }}
+{% endfor %}
+{% endif %}
 
 ---
 Bu bülteni AI & Teknoloji Radarı'na abone olduğunuz için alıyorsunuz.
