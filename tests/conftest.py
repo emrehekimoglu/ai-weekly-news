@@ -32,6 +32,13 @@ def isolated_history(monkeypatch, tmp_path):
     return path
 
 
+@pytest.fixture(autouse=True)
+def no_share_links(monkeypatch):
+    """CI'daki GITHUB_REPOSITORY arşiv adresini doldurmasın; paylaşım testleri bunları açıkça verir."""
+    monkeypatch.setattr(config, "SIGNUP_URL", "")
+    monkeypatch.setattr(config, "ARCHIVE_URL", "")
+
+
 @pytest.fixture
 def set_config(monkeypatch):
     """set_config(AD=değer, ...) ile newsletter.config değerlerini test süresince değiştirir."""

@@ -15,6 +15,18 @@ GCP_SA_KEY = os.environ.get("GCP_SA_KEY")
 SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID")
 WEB_APP_URL = os.environ.get("WEB_APP_URL", "")
 MODEL_NAME = os.environ.get("OPENCODE_MODEL", "deepseek-v4.1-flash")
+# Opsiyonel: abonelik formu (örn. Google Forms). Boşsa "arkadaşına ilet / abone ol" bloğu gösterilmez.
+SIGNUP_URL = os.environ.get("SIGNUP_URL", "").strip()
+
+
+def _default_archive_url():
+    # GitHub Actions'ta GITHUB_REPOSITORY "sahip/depo" olur; Pages adresi bundan çıkar
+    owner, _, repo = os.environ.get("GITHUB_REPOSITORY", "").partition("/")
+    return f"https://{owner.lower()}.github.io/{repo}/" if owner and repo else ""
+
+
+# Web arşivinin kök adresi (GitHub Pages). Boşsa e-postada "web'de oku" ve arşivde paylaşım bağlantıları çıkmaz.
+ARCHIVE_URL = os.environ.get("ARCHIVE_URL", "").strip() or _default_archive_url()
 
 # LLM çağrısı için yeniden deneme ayarları
 LLM_MAX_ATTEMPTS = 3
@@ -42,6 +54,13 @@ HISTORY_ISSUES = 8  # bu kadar sayı geriye bakılır
 
 # feedparser.parse(url) zaman aşımı desteklemez; RSS/Atom akışları requests ile bu sürede çekilir
 FEED_TIMEOUT_SECONDS = 15
+
+
+def issue_url(date_str):
+    """Verilen tarihli (YYYY-AA-GG) sayının arşiv sayfası adresi; arşiv adresi yoksa None."""
+    if not ARCHIVE_URL:
+        return None
+    return f"{ARCHIVE_URL.rstrip('/')}/issues/{date_str}.html"
 
 
 def preview_address():
