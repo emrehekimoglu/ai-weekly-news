@@ -22,19 +22,20 @@ def _read_sheet():
     creds = Credentials.from_service_account_info(
         json.loads(config.GCP_SA_KEY), scopes=["https://www.googleapis.com/auth/spreadsheets.readonly"])
     rows = gspread.authorize(creds).open_by_key(config.SPREADSHEET_ID).sheet1.get_all_values()
+    return [{"email": email, "token": token}
+            for email, (status, token) in latest_rows(rows).items() if status == "AKTIF"]
 
-    subscribers = []
-    seen = set()
+
+def latest_rows(rows):
+    """Başlık satırı hariç her e-postanın en yeni kaydı: {email: (DURUM, token)}, en yeniden eskiye."""
+    latest = {}
     for row in reversed(rows[1:]):  # en yeni kayıttan eskiye
         if len(row) < 4:
             continue
-        email, status, token = row[1].strip().lower(), row[2].strip().upper(), row[3].strip()
-        if email in seen:
-            continue
-        if status == "AKTIF" and "@" in email:
-            subscribers.append({"email": email, "token": token})
-            seen.add(email)
-    return subscribers
+        email = row[1].strip().lower()
+        if "@" in email and email not in latest:
+            latest[email] = (row[2].strip().upper(), row[3].strip())
+    return latest
 
 
 def _read_file(path):
