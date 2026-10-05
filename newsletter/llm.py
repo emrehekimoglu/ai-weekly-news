@@ -19,6 +19,7 @@ MAX_DIGEST_CARDS = 12
 MAX_HEADLINE_CHARS = 90
 MAX_TLDR_CHARS = 160
 MAX_STAT_VALUE_CHARS = 16
+MAX_TURKIYE_CARDS = 3
 
 PROMPT = """
 Sen dünya standartlarında kıdemli bir yapay zeka ve teknoloji baş editörüsün.
@@ -48,10 +49,11 @@ YAZIM KURALLARI:
   - "category": Şunlardan biri: {categories}
   - "summary": 2-3 cümle ile ne olduğunu, modelin/olayın detayını ve teknik yönünü merak uyandırıcı, doğrudan ve net şekilde anlat. 'Neden Önemli?' gibi ayrı bir bölüm EKLEME.
 - Maddeleri önem sırasına göre diz.
+- "turkiye": "Türkiye'den" bölümü. Kaynağında "(Türkiye)" yazan kayıtlardan, Türkiye'deki şirketleri, girişimleri, yatırımları, araştırmacıları veya düzenlemeleri anlatan EN FAZLA 3 haber seç ("id", "title", "summary" alanlarıyla; özet 1-2 cümle). Yabancı bir haberin Türkçe çevirisi buraya GİRMEZ ve "items" içinde seçtiğin bir haberi burada TEKRARLAMA. Uygun haber yoksa boş liste [] yaz; bölümü ASLA zorla doldurma.
 
 ÇIKTI BİÇİMİ:
 Sadece aşağıdaki yapıda geçerli bir JSON nesnesi döndür; HTML, markdown veya açıklama EKLEME:
-{{"headline": "...", "intro": "...", "tldr": ["...", "...", "..."], "stat": {{"value": "...", "label": "..."}}, "items": [{{"id": 3, "title": "...", "category": "Yeni Model", "summary": "..."}}]}}
+{{"headline": "...", "intro": "...", "tldr": ["...", "...", "..."], "stat": {{"value": "...", "label": "..."}}, "items": [{{"id": 3, "title": "...", "category": "Yeni Model", "summary": "..."}}], "turkiye": [{{"id": 7, "title": "...", "summary": "..."}}]}}
 """
 
 
@@ -160,7 +162,8 @@ def parse_digest(content, items):
     if len(entries) < config.MIN_DIGEST_CARDS:
         raise ValueError(f"Yalnızca {len(entries)} haber seçilmiş (en az {config.MIN_DIGEST_CARDS} bekleniyor)")
     return Digest(intro=intro, entries=entries[:MAX_DIGEST_CARDS], headline=_headline(data.get("headline")),
-                  tldr=_tldr(data.get("tldr")), stat=_stat(data.get("stat")))
+                  tldr=_tldr(data.get("tldr")), stat=_stat(data.get("stat")),
+                  turkiye=_turkiye(data.get("turkiye"), items, seen))
 
 
 def _optional_text(value, max_chars):
@@ -200,3 +203,25 @@ def _stat(value):
             return Stat(value=number, label=label)
     log.warning("'stat' geçersiz, 'Haftanın Rakamı' bölümü atlandı: %r", value)
     return None
+
+
+def _turkiye(value, items, used_ids):
+    """"Türkiye'den" bölümü: sadece Türk kaynaklarından, ana listede olmayan geçerli seçimler; bozuk seçim atlanır."""
+    if not isinstance(value, list):
+        if value is not None:
+            log.warning("'turkiye' liste değil, bölüm atlandı")
+        return []
+    entries, seen = [], set(used_ids)
+    for pick in value:
+        idx = pick.get("id") if isinstance(pick, dict) else None
+        if isinstance(idx, str) and idx.strip().isdigit():
+            idx = int(idx)
+        title = _optional_text(pick.get("title"), MAX_HEADLINE_CHARS * 2) if isinstance(pick, dict) else None
+        summary = _optional_text(pick.get("summary"), MAX_TLDR_CHARS * 3) if isinstance(pick, dict) else None
+        if (not isinstance(idx, int) or not 1 <= idx <= len(items) or idx in seen
+                or not items[idx - 1].turkish or not title or not summary):
+            log.warning("'turkiye' içinde geçersiz seçim atlandı: %r", pick)
+            continue
+        seen.add(idx)
+        entries.append(DigestEntry(item=items[idx - 1], title=title, category="Türkiye", summary=summary))
+    return entries[:MAX_TURKIYE_CARDS]
