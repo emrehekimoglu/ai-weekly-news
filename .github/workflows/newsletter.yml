@@ -48,6 +48,7 @@ jobs:
           EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
           EMAIL_RECEIVER: ${{ secrets.EMAIL_RECEIVER }}
           WEB_APP_URL: ${{ secrets.WEB_APP_URL }}
+          SIGNUP_URL: ${{ secrets.SIGNUP_URL }}
           GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
           SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
           REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
@@ -81,6 +82,8 @@ jobs:
       # newsletter/app.py issue.html dosyasını önizleme ve dry_run'da yazmaz.
       - name: Web Arşivine Ekle (GitHub Pages)
         if: always() && !inputs.dry_run && !inputs.preview && hashFiles('issue.html') != ''
+        env:
+          SIGNUP_URL: ${{ secrets.SIGNUP_URL }}
         run: |
           if git fetch --depth=1 origin +refs/heads/gh-pages:refs/remotes/origin/gh-pages; then
             git worktree add -B gh-pages site origin/gh-pages
