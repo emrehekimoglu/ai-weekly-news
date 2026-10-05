@@ -71,7 +71,7 @@ Safeguards in `llm.generate_digest` and `llm.parse_digest`:
 
 **Subscribers** are read by `subscribers.get_subscribers`, in this order:
 
-1. **Google Sheet** (when `GCP_SA_KEY` and `SPREADSHEET_ID` are set). The first sheet is read with a service account (read-only scope). The header row is skipped; column B is the email, column C the status and column D the unsubscribe token (column A is ignored). Rows are read newest first, only the newest row per email counts, and only rows with status `AKTIF` are included.
+1. **Google Sheet** (when `GCP_SA_KEY` and `SPREADSHEET_ID` are set). The first sheet is read with a service account (read-only scope; the weekly stats below use a separate write). The header row is skipped; column B is the email, column C the status and column D the unsubscribe token (column A is ignored). Rows are read newest first, only the newest row per email counts, and only rows with status `AKTIF` are included.
 2. **`subscribers.txt`** in the working directory, one email per line (lines starting with `#` are ignored). Used only if the sheet is not configured or has no active subscribers.
 3. **`EMAIL_RECEIVER`** as a single recipient, if neither of the above gives anyone.
 
@@ -89,6 +89,18 @@ If the sheet is configured but cannot be read, or has no `AKTIF` rows, the newsl
 To change the design, edit [`newsletter/templates/newsletter.html.j2`](newsletter/templates/newsletter.html.j2) (and the `.txt.j2` twin), then check it with a `preview` run.
 
 If there are no recipients, or any single email fails to send, the run exits with status 1 so the failure shows up in GitHub Actions. The other subscribers still receive their copy.
+
+## Subscriber stats
+
+After every real send, `newsletter/stats.py` appends one row to a **Stats** tab in the same Google Sheet (the tab is created on the first run). Each row holds only counts, never an email address:
+
+| Tarih | Aktif abone | Yeni kayıt | Ayrılan | Net değişim | Gönderilen | Başarısız | Kayıtlı e-posta | Pasif |
+|---|---|---|---|---|---|---|---|---|
+
+- **Aktif abone**: unique emails whose newest row is `AKTIF`. **Kayıtlı e-posta**: unique emails that appear in the sheet at all. **Pasif**: the rest.
+- **Yeni kayıt** is the growth of *Kayıtlı e-posta* since the previous row, **Ayrılan** the growth of *Pasif* (never below 0, so a re-subscription does not count as a negative), and **Net değişim** the change in *Aktif abone*. They are left empty on the first row. A person who unsubscribes and another who re-subscribes in the same week cancel out in *Ayrılan*.
+- The run log prints the same counts in one line. Preview and `dry_run` runs never write stats, and neither does a send that fell back to `subscribers.txt` or `EMAIL_RECEIVER`.
+- Writing needs the service account to be an **Editor** on the sheet (Share → the service account's `client_email` → Editor). Without it the run prints a GitHub Actions warning and carries on; the newsletter itself is not affected.
 
 ## Feedback links
 
@@ -178,7 +190,7 @@ A successful local send also adds the issue to `data/history.json`. Don't commit
 2. `python -m py_compile main.py` and `python -c "import main"`
 3. `pytest -q`
 
-The tests in [`tests/`](tests) use no network: they cover date parsing, the prompt and checking the model's JSON, the email templates, removing repeated stories and the issue history, skipping a failing source, dry-run output, the Reddit RSS fallback (with a fake `requests.get`), send-failure reporting (with a fake SMTP server), preview mode, the email format (subject, HTML escaping, plain-text part and unsubscribe header), and the startup settings check, loud Sheets fallback and feed timeouts.
+The tests in [`tests/`](tests) use no network: they cover date parsing, the prompt and checking the model's JSON, the email templates, removing repeated stories and the issue history, skipping a failing source, dry-run output, the Reddit RSS fallback (with a fake `requests.get`), send-failure reporting (with a fake SMTP server), preview mode, the email format (subject, HTML escaping, plain-text part and unsubscribe header), the startup settings check, loud Sheets fallback and feed timeouts, and the subscriber stats (with a fake sheet).
 
 To run the same checks locally:
 
