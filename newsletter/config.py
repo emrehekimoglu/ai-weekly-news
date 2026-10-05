@@ -15,7 +15,7 @@ GCP_SA_KEY = os.environ.get("GCP_SA_KEY")
 SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID")
 WEB_APP_URL = os.environ.get("WEB_APP_URL", "")
 MODEL_NAME = os.environ.get("OPENCODE_MODEL", "deepseek-v4.1-flash")
-# Opsiyonel: abonelik formu (örn. Google Forms). Boşsa "arkadaşına ilet / abone ol" bloğu gösterilmez.
+# Opsiyonel: abonelik sayfası (Worker'ın /abone sayfası veya Google Forms). Boşsa "arkadaşına ilet / abone ol" bloğu gösterilmez.
 SIGNUP_URL = os.environ.get("SIGNUP_URL", "").strip()
 
 

@@ -1,6 +1,6 @@
 name: Worker'ı Yayınla
 
-# Abonelik onayı, abonelikten çıkma ve oy bağlantılarını karşılayan Cloudflare Worker'ı yayınlar.
+# Abonelik sayfası, abonelik onayı, abonelikten çıkma ve oy bağlantılarını karşılayan Cloudflare Worker'ı yayınlar.
 on:
   push:
     branches: [main]
@@ -32,6 +32,8 @@ jobs:
         env:
           GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
           SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
+          EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
+          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -39,3 +41,5 @@ jobs:
           secrets: |
             GCP_SA_KEY
             SPREADSHEET_ID
+            EMAIL_SENDER
+            EMAIL_PASSWORD
