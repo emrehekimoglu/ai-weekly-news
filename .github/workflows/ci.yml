@@ -37,3 +37,6 @@ jobs:
 
       - name: Testler (pytest)
         run: pytest -q
+
+      - name: Worker testleri (node)
+        run: cd worker && node --test
