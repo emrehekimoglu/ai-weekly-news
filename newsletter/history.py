@@ -52,7 +52,7 @@ def record(digest, date, path=None):
     issues = [issue for issue in load(path) if issue.get("date") != date]
     issues.append({
         "date": date,
-        "entries": [{"title": e.title, "link": e.item.link, "source": e.item.source} for e in digest.entries],
+        "entries": [{"title": e.title, "link": e.item.link, "source": e.item.source} for e in digest.entries + digest.turkiye],
     })
     issues = issues[-config.HISTORY_ISSUES:]
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)

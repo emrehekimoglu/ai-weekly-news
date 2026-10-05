@@ -13,10 +13,12 @@ class NewsItem:
     date: str  # Türkçe, örn. "28 Eylül 2026"
     link: str
     summary: str
+    turkish: bool = False  # Türk teknoloji basınından ("Türkiye'den" bölümüne aday)
 
     def to_prompt(self, index):
         """Modele giden ham veri listesindeki tek bir madde."""
-        return (f"[{index}] Kaynak: {self.source}\nBaşlık: {self.title}\nYayın Tarihi: {self.date}\n"
+        source = f"{self.source} (Türkiye)" if self.turkish else self.source
+        return (f"[{index}] Kaynak: {source}\nBaşlık: {self.title}\nYayın Tarihi: {self.date}\n"
                 f"Link: {self.link}\nÖzet: {self.summary}\n")
 
 
@@ -48,4 +50,5 @@ class Digest:
     headline: str | None = None  # haftanın manşeti, konu satırında da kullanılır
     tldr: list[str] = field(default_factory=list)  # "30 saniyede bu hafta" maddeleri
     stat: Stat | None = None
+    turkiye: list[DigestEntry] = field(default_factory=list)  # "Türkiye'den" bölümü (boşsa atlanır)
     date: str = field(default_factory=_today)  # sayının Türkçe tarihi
