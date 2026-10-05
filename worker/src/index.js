@@ -27,7 +27,8 @@ export default {
       return page(400, "🤔", "Geçersiz istek", "Bu bağlantı tanınmadı.");
     } catch (err) {
       console.error(err);
-      return page(500, "⚠️", "Bir hata oluştu", "Lütfen biraz sonra tekrar deneyin.");
+      // Hatanın kısa özeti sayfada görünür ki kurulum sorunları (ör. tablo izni) hemen anlaşılsın
+      return page(500, "⚠️", "Bir hata oluştu", `Lütfen biraz sonra tekrar deneyin. (${errorSummary(err)})`);
     }
   },
 };
@@ -91,6 +92,15 @@ async function vote(sheets, p) {
               "Oyunuz kaydedildi. Fikrinizi değiştirirseniz diğer bağlantıya tıklamanız yeterli.");
 }
 
+/** Hata özeti: Google'ın kısa hata mesajı; tablo kimliği veya istek içeriği gösterilmez. */
+export function errorSummary(err) {
+  const m = String(err && err.message || err).match(/^(Sheets API \d+|Google jetonu alınamadı: \d+)(?::\s*(.*))?$/s);
+  if (!m) return String(err && err.name || "Hata");
+  let detail = "";
+  try { detail = JSON.parse(m[2]).error.message; } catch { /* gövde JSON değil */ }
+  return detail ? `${m[1]}: ${detail.slice(0, 160)}` : m[1];
+}
+
 /** Google Sheets API: servis hesabı JWT'si ile erişim jetonu alır ve değerleri okur/yazar. */
 export class Sheets {
   constructor(env, fetchFn = fetch) {
@@ -110,7 +120,7 @@ export class Sheets {
       headers: { "content-type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion }),
     });
-    if (!res.ok) throw new Error(`Google jetonu alınamadı: ${res.status}`);
+    if (!res.ok) throw new Error(`Google jetonu alınamadı: ${res.status}: ${await res.text()}`);
     this._token = (await res.json()).access_token;
     this._expires = Date.now() + 50 * 60 * 1000;
     return this._token;
