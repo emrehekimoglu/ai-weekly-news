@@ -20,7 +20,12 @@ def test_sanitize_removes_personal_footer_from_sent_email(set_config):
     assert "gizli-token" not in cleaned
     assert "okur@example.com" not in cleaned
     assert "abone olduğunuz" not in cleaned
+    assert "action=vote" not in cleaned
     assert "https://example.com/5" in cleaned
+
+
+def test_archive_issue_has_no_feedback_links():
+    assert "action=vote" not in ISSUE and "Bu sayı nasıldı?" not in ISSUE
 
 
 def test_sanitize_drops_token_and_mailto_links_but_keeps_sources():
@@ -81,7 +86,7 @@ def run(set_config, fake_sources, monkeypatch, tmp_path):
 def test_real_send_saves_shared_issue_for_archive(run):
     app.main()
     saved = run.read_text(encoding="utf-8")
-    assert saved == ISSUE
+    assert saved == render_html(make_digest())
     assert "token" not in saved and "a@example.com" not in saved
 
 

@@ -13,6 +13,9 @@ import os
 import re
 import sys
 from datetime import datetime, timezone
+from urllib.parse import quote
+
+from newsletter import config
 
 SITE_TITLE = "AI & Teknoloji Radarı Arşivi"
 ISSUES_DIR = "issues"
@@ -20,8 +23,8 @@ TR_MONTHS = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
              "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"]
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
-# Aboneye özel veri taşıyabilecek bağlantılar (iptal, token, e-posta parametresi, mailto)
-_PERSONAL_HREF = re.compile(r"(action=unsubscribe|[?&](token|email)=|^mailto:)", re.IGNORECASE)
+# Aboneye özel veri taşıyabilecek bağlantılar (iptal, oy, token, e-posta parametresi, mailto)
+_PERSONAL_HREF = re.compile(r"(action=(unsubscribe|vote)|[?&](token|email)=|^mailto:)", re.IGNORECASE)
 _ANCHOR = re.compile(r"<a\b[^>]*>.*?</a>", re.IGNORECASE | re.DOTALL)
 _HREF = re.compile(r"""href\s*=\s*(["'])(.*?)\1""", re.IGNORECASE | re.DOTALL)
 
@@ -53,28 +56,68 @@ def sanitize(content):
     return content
 
 
-def _head(title):
-    return (f'<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1">\n'
+def _head(title, url=None):
+    head = (f'<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1">\n'
             f"<title>{html.escape(title)}</title>\n")
+    if url:
+        # Paylaşılan bağlantının sosyal medyada başlıkla görünmesi için Open Graph
+        head += (f'<meta property="og:type" content="article">\n<meta property="og:title" content="{html.escape(title)}">\n'
+                 f'<meta property="og:url" content="{html.escape(url)}">\n')
+    return head
+
+
+_LINK_STYLE = "color: #2563eb; text-decoration: none; margin-right: 14px; white-space: nowrap;"
+
+
+def _signup_link():
+    if not config.SIGNUP_URL:
+        return ""
+    return (f'<a href="{html.escape(config.SIGNUP_URL)}" style="color: #2563eb; font-weight: 600; text-decoration: none;">'
+            "Ücretsiz abone olun →</a>")
+
+
+def share_bar(title, date_str):
+    """Sayfanın herkese açık adresini paylaşan bağlantılar (abone verisi içermez). Arşiv adresi yoksa boş."""
+    url = config.issue_url(date_str)
+    if not url:
+        return ""
+    u, t = quote(url, safe=""), quote(title, safe="")
+    targets = [
+        ("X", f"https://twitter.com/intent/tweet?url={u}&text={t}"),
+        ("LinkedIn", f"https://www.linkedin.com/sharing/share-offsite/?url={u}"),
+        ("WhatsApp", f"https://wa.me/?text={quote(f'{title} {url}', safe='')}"),
+        ("Telegram", f"https://t.me/share/url?url={u}&text={t}"),
+        ("E-posta", f"mailto:?subject={t}&body={u}"),
+    ]
+    links = "".join(f'<a href="{html.escape(href)}" target="_blank" rel="noopener" style="{_LINK_STYLE}">{name}</a>'
+                    for name, href in targets)
+    return ('<p style="max-width: 620px; margin: 0 auto 32px auto; padding: 0 16px; font-family: sans-serif; font-size: 14px;">'
+            f'<strong>Paylaş:</strong>&nbsp; {links}</p>')
 
 
 def render_issue(content, date_str):
     """Temizlenmiş bülteni başlık, viewport ve arşive dönüş bağlantısıyla sarar."""
     content = sanitize(content)
     title = f"{SITE_TITLE} • {turkish_date(date_str)}"
+    signup = _signup_link()
     nav = ('<p style="max-width: 720px; margin: 0 auto 16px auto; font-family: sans-serif; font-size: 14px;">'
-           '<a href="../index.html" style="color: #2563eb; text-decoration: none;">← Tüm sayılar</a></p>')
+           '<a href="../index.html" style="color: #2563eb; text-decoration: none;">← Tüm sayılar</a>'
+           + (f'<span style="float: right;">{signup}</span>' if signup else "") + "</p>")
+    share = share_bar(title, date_str)
+    page_url = config.issue_url(date_str)
 
     # <head> içindeki eski title'ı at, kendi meta/title'ımızı ekle
     content = re.sub(r"<title\b.*?</title\s*>", "", content, flags=re.IGNORECASE | re.DOTALL)
     content = re.sub(r"<meta\s+charset[^>]*>", "", content, flags=re.IGNORECASE)
     if re.search(r"<head\b[^>]*>", content, re.IGNORECASE):
-        content = re.sub(r"(<head\b[^>]*>)", lambda m: m.group(1) + "\n" + _head(title), content,
+        content = re.sub(r"(<head\b[^>]*>)", lambda m: m.group(1) + "\n" + _head(title, page_url), content,
                          count=1, flags=re.IGNORECASE)
     else:
-        content = re.sub(r"(<html\b[^>]*>)", lambda m: f"{m.group(1)}\n<head>\n{_head(title)}</head>", content,
+        content = re.sub(r"(<html\b[^>]*>)", lambda m: f"{m.group(1)}\n<head>\n{_head(title, page_url)}</head>", content,
                          count=1, flags=re.IGNORECASE)
     content = re.sub(r"(<body\b[^>]*>)", lambda m: m.group(1) + "\n" + nav, content, count=1, flags=re.IGNORECASE)
+    if share:
+        content = re.sub(r"(</body\s*>)", lambda m: share + "\n" + m.group(1), content, count=1, flags=re.IGNORECASE)
     if not content.lstrip().lower().startswith("<!doctype"):
         content = "<!DOCTYPE html>\n" + content
     return content
@@ -95,6 +138,7 @@ def render_index(dates):
         body = f'  <ul class="issues">\n{items}\n  </ul>'
     else:
         body = "  <p>Henüz yayınlanmış sayı yok.</p>"
+    signup = f" • {_signup_link()}" if config.SIGNUP_URL else ""
     return f"""<!DOCTYPE html>
 <html lang="tr">
 <head>
@@ -117,7 +161,7 @@ def render_index(dates):
 <body>
 <main>
   <h1>🤖 AI & Teknoloji Radarı</h1>
-  <p class="sub">Haftalık bültenin geçmiş sayıları • {len(dates)} sayı</p>
+  <p class="sub">Haftalık bültenin geçmiş sayıları • {len(dates)} sayı{signup}</p>
 {body}
 </main>
 </body>
