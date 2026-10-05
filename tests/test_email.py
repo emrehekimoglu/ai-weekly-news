@@ -148,3 +148,12 @@ def test_templates_without_feedback_have_no_votes():
     assert "action=vote" not in render_html(make_digest(cover=True), UNSUB)
     assert "Bu sayı nasıldı?" not in render_html(make_digest())
     assert "Bu sayı nasıldı?" not in render_text(make_digest(), UNSUB)
+
+
+def test_turkiye_stories_get_votes_numbered_after_main_stories():
+    digest = make_digest()
+    digest.turkiye = [make_digest(2).entries[1]]
+    msg = mailer.build_message(digest, {"email": "a@example.com", "token": "t"}, "Konu", "2026-10-05")
+    html = msg.get_payload()[1].get_payload(decode=True).decode("utf-8")
+    assert "TÜRKİYE'DEN" in html
+    assert "story=6&amp;v=up" in html and "story=7" not in html
