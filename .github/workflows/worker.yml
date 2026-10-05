@@ -1,0 +1,41 @@
+name: Worker'ı Yayınla
+
+# Abonelik onayı, abonelikten çıkma ve oy bağlantılarını karşılayan Cloudflare Worker'ı yayınlar.
+on:
+  push:
+    branches: [main]
+    paths: ['worker/**', '.github/workflows/worker.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      HAS_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
+    steps:
+      - name: Depoyu Klonla
+        uses: actions/checkout@v4
+
+      - name: Testler
+        run: cd worker && node --test
+
+      - name: Cloudflare sırrı yoksa uyar
+        if: env.HAS_TOKEN != 'true'
+        run: echo "::warning::CLOUDFLARE_API_TOKEN ve CLOUDFLARE_ACCOUNT_ID secret'ları eklenmeden Worker yayınlanmaz."
+
+      - name: Cloudflare'a Yayınla
+        if: env.HAS_TOKEN == 'true'
+        uses: cloudflare/wrangler-action@v3
+        env:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+          SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: worker
+          secrets: |
+            GCP_SA_KEY
+            SPREADSHEET_ID

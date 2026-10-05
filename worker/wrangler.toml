@@ -1,0 +1,6 @@
+# Abonelik onayı, abonelikten çıkma ve 👍/👎 oyları için Cloudflare Worker.
+# .github/workflows/worker.yml ile yayınlanır; GCP_SA_KEY ve SPREADSHEET_ID sırları oradan aktarılır.
+name = "ai-radar"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+workers_dev = true
