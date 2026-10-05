@@ -107,3 +107,44 @@ def test_message_has_plain_html_and_list_unsubscribe():
 def test_no_list_unsubscribe_without_token():
     msg = mailer.build_message(make_digest(), {"email": "a@example.com"}, "Konu")
     assert msg["List-Unsubscribe"] is None
+
+
+def test_feedback_links_carry_no_email_or_token():
+    build = mailer.feedback_url_builder("2026-10-05", "gizli-token")
+    url = build(0, "up")
+    assert url.startswith("https://script.example.com/exec?action=vote&issue=2026-10-05&story=0&v=up&voter=")
+    assert "token" not in url and "email" not in url and "gizli" not in url
+    voter = url.rsplit("voter=", 1)[1]
+    assert len(voter) == 12 and build(3, "down").endswith(f"story=3&v=down&voter={voter}")
+    # Kimlik sayıya özeldir: haftalar arasında okur izlenemez
+    assert voter not in mailer.feedback_url_builder("2026-10-12", "gizli-token")(0, "up")
+    assert "voter=" not in mailer.feedback_url_builder("2026-10-05", "")(0, "up")
+
+
+def test_feedback_links_need_web_app(set_config):
+    set_config(WEB_APP_URL="")
+    assert mailer.feedback_url_builder("2026-10-05", "t") is None
+
+
+def test_issue_id_marks_preview(set_config):
+    day = datetime(2026, 10, 5, tzinfo=timezone.utc)
+    assert mailer.issue_id(day) == "2026-10-05"
+    set_config(PREVIEW=True)
+    assert mailer.issue_id(day) == "onizleme-2026-10-05"
+
+
+def test_message_has_issue_and_story_votes():
+    msg = mailer.build_message(make_digest(), {"email": "a@example.com", "token": "t"}, "Konu", "2026-10-05")
+    plain, html = (p.get_payload(decode=True).decode("utf-8") for p in msg.get_payload())
+    assert "Bu sayı nasıldı?" in html
+    for story in range(0, 6):
+        for vote in ("up", "down"):
+            assert f"action=vote&amp;issue=2026-10-05&amp;story={story}&amp;v={vote}&amp;voter=" in html
+    assert "Bu sayı nasıldı?\n👍 Beğendim: https://script.example.com/exec?action=vote" in plain
+    assert "story=1" not in plain  # düz metinde yalnızca sayıya oy
+
+
+def test_templates_without_feedback_have_no_votes():
+    assert "action=vote" not in render_html(make_digest(cover=True), UNSUB)
+    assert "Bu sayı nasıldı?" not in render_html(make_digest())
+    assert "Bu sayı nasıldı?" not in render_text(make_digest(), UNSUB)

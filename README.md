@@ -82,6 +82,7 @@ If the sheet is configured but cannot be read, or has no `AKTIF` rows, the newsl
 - **Subject** ends with the send date, e.g. `🚀 Haftalık Yapay Zekâ & Teknoloji Radarı • 28 Eylül 2026`, so Gmail shows each week as its own conversation instead of grouping them.
 - **Body** is `multipart/alternative`: a plain-text version from `newsletter.txt.j2`, followed by the HTML version from `newsletter.html.j2`. Both are rendered per subscriber so the unsubscribe link is theirs. Text from the model is HTML-escaped.
 - **Unsubscribe**: a footer link and a `List-Unsubscribe` header, both pointing to `WEB_APP_URL?action=unsubscribe&email=…&token=…`. The unsubscribe web app itself is not in this repository. If `WEB_APP_URL` or the subscriber's token is missing, the footer link is `#` and the header is left out. The one-click `List-Unsubscribe-Post` header is not sent, because it only works if the web app accepts a POST request.
+- **Feedback**: each story has small 👍 👎 links, and a *Bu sayı nasıldı?* box above the footer rates the whole issue (the plain-text part has only the issue vote). See [Feedback links](#feedback-links).
 - **Sharing**: the footer links to the issue's web archive page (`https://<owner>.github.io/<repo>/issues/YYYY-MM-DD.html`, derived from `GITHUB_REPOSITORY`; override with an `ARCHIVE_URL` env value). Each archive page ends with X, LinkedIn, WhatsApp, Telegram and email share links that carry only that public page address.
 - **Logo**: the template uses an inline CSS badge with an emoji instead of an external image, so there is nothing for mail clients to block.
 
@@ -100,6 +101,12 @@ After every real send, `newsletter/stats.py` appends one row to a **Stats** tab 
 - **Yeni kayıt** is the growth of *Kayıtlı e-posta* since the previous row, **Ayrılan** the growth of *Pasif* (never below 0, so a re-subscription does not count as a negative), and **Net değişim** the change in *Aktif abone*. They are left empty on the first row. A person who unsubscribes and another who re-subscribes in the same week cancel out in *Ayrılan*.
 - The run log prints the same counts in one line. Preview and `dry_run` runs never write stats, and neither does a send that fell back to `subscribers.txt` or `EMAIL_RECEIVER`.
 - Writing needs the service account to be an **Editor** on the sheet (Share → the service account's `client_email` → Editor). Without it the run prints a GitHub Actions warning and carries on; the newsletter itself is not affected.
+
+## Feedback links
+
+The 👍/👎 links point to `WEB_APP_URL?action=vote&issue=YYYY-MM-DD&story=N&v=up|down&voter=…`, handled by the same Apps Script web app as unsubscribe. `story=0` is the whole issue; `1`, `2`, … is the story's position in the email, which matches the order of that issue's `entries` in [`data/history.json`](data/history.json). Links never carry the subscriber's email or token: `voter` is the first 12 hex characters of `sha256("<issue>:<token>")`, so a reader can change their vote but can't be followed across issues or traced back to an address. Subscribers without a token (fallback recipients) vote anonymously. Preview emails use `issue=onizleme-YYYY-MM-DD` so test clicks stay separate. The links are left out of the web archive and of the saved preview HTML.
+
+The handler is [`apps-script/feedback.gs`](apps-script/feedback.gs), kept here for reference. To install it, open the unsubscribe web app's Apps Script project, add the file, put `if (e.parameter.action === 'vote') return handleVote(e);` at the top of `doGet(e)`, and redeploy the existing deployment as a new version (a new deployment would change `WEB_APP_URL`). Votes land in a *Geri Bildirim* sheet (created on the first vote) with the columns time, issue, story, vote and voter. The vote is saved by the page's own script after it loads, so mail scanners that prefetch links without running JavaScript don't cast votes.
 
 ## Schedule and manual runs
 

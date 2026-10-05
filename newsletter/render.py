@@ -23,10 +23,13 @@ def _links():
     return {"signup_url": config.SIGNUP_URL or None, "web_url": config.issue_url(today)}
 
 
-def render_html(digest, unsubscribe_url=None):
-    return _env.get_template("newsletter.html.j2").render(digest=digest, unsubscribe_url=unsubscribe_url, **_links())
+# feedback_url(story, vote) -> 👍/👎 bağlantısı; verilmezse (arşiv, önizleme dosyası) oy bağlantıları çıkmaz.
+def render_html(digest, unsubscribe_url=None, feedback_url=None):
+    return _env.get_template("newsletter.html.j2").render(digest=digest, unsubscribe_url=unsubscribe_url,
+                                                          feedback_url=feedback_url, **_links())
 
 
-def render_text(digest, unsubscribe_url=None):
-    text = _env.get_template("newsletter.txt.j2").render(digest=digest, unsubscribe_url=unsubscribe_url, **_links())
+def render_text(digest, unsubscribe_url=None, feedback_url=None):
+    text = _env.get_template("newsletter.txt.j2").render(digest=digest, unsubscribe_url=unsubscribe_url,
+                                                         feedback_url=feedback_url, **_links())
     return text.strip() + "\n"
