@@ -19,9 +19,6 @@ def setup_logging():
 
 def main():
     setup_logging()
-    if config.SCHEDULED and not (config.DRY_RUN or config.PREVIEW) and history.sent_within(history.load(), days=6):
-        log.info("Bu hafta zaten bir sayı gönderilmiş; zamanlanmış çalışma bir şey yapmadan bitti.")
-        return
     if not config.DRY_RUN:
         problems = config.check_config()
         if problems:

@@ -2,11 +2,8 @@ name: Haftalik Teknoloji ve AI Bulteni
 
 on:
   schedule:
-    # Her Pazartesi 06:17 UTC (TSİ 09:17). GitHub saat başı (:00) zamanlamaları yoğunlukta
-    # geciktirebilir veya hiç çalıştırmayabilir; bu yüzden dakika saat başı değil.
-    - cron: '17 6 * * 1'
-    # Yedek: ilk zamanlama düşerse. Bu hafta zaten gönderildiyse main.py hiçbir şey yapmadan çıkar.
-    - cron: '43 9 * * 1'
+    # Her Pazartesi saat 03:00 UTC (TSİ 06:00)
+    - cron: '0 3 * * 1'
   workflow_dispatch: # Manuel test butonu
     inputs:
       dry_run:
@@ -33,9 +30,6 @@ jobs:
     steps:
       - name: Depoyu Klonla
         uses: actions/checkout@v4
-        with:
-          # Kuyrukta beklerken commit edilen data/history.json da gelsin (yedek zamanlama bunu kontrol eder)
-          ref: ${{ github.ref }}
 
       - name: Python 3.11 Kur
         uses: actions/setup-python@v5
@@ -61,7 +55,6 @@ jobs:
           REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
           DRY_RUN: ${{ inputs.dry_run }}
           PREVIEW: ${{ inputs.preview }}
-          GITHUB_EVENT_NAME: ${{ github.event_name }}
           PREVIEW_EMAIL: ${{ secrets.PREVIEW_EMAIL }}
         run: python main.py
 
