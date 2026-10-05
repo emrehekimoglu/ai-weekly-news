@@ -95,7 +95,7 @@ async function vote(sheets, p) {
 /** Hata özeti: Google'ın kısa hata mesajı; tablo kimliği veya istek içeriği gösterilmez. */
 export function errorSummary(err) {
   const m = String(err && err.message || err).match(/^(Sheets API \d+|Google jetonu alınamadı: \d+)(?::\s*(.*))?$/s);
-  if (!m) return String(err && err.name || "Hata");
+  if (!m) return `${err && err.name || "Hata"}: ${String(err && err.message || "").slice(0, 160)}`;
   let detail = "";
   try { detail = JSON.parse(m[2]).error.message; } catch { /* gövde JSON değil */ }
   return detail ? `${m[1]}: ${detail.slice(0, 160)}` : m[1];
@@ -103,10 +103,11 @@ export function errorSummary(err) {
 
 /** Google Sheets API: servis hesabı JWT'si ile erişim jetonu alır ve değerleri okur/yazar. */
 export class Sheets {
-  constructor(env, fetchFn = fetch) {
+  constructor(env, fetchFn) {
     this.key = JSON.parse(env.GCP_SA_KEY);
     this.id = env.SPREADSHEET_ID;
-    this.fetch = fetchFn;
+    // Workers'ta fetch başka bir nesneye bağlı çağrılırsa "Illegal invocation" (TypeError) verir
+    this.fetch = fetchFn || ((...args) => fetch(...args));
   }
 
   async token() {
