@@ -64,6 +64,86 @@
           "source": "Reddit r/LocalLLaMA"
         }
       ]
+    },
+    {
+      "date": "2026-10-05",
+      "entries": [
+        {
+          "title": "OpenAI'dan İstifa: 'Kültür Bozuk'",
+          "link": "https://www.theatlantic.com/technology/2026/10/openai-safety-team-resignation/688881/?gift=v5U_UzUTothfWXsPxtvNVAh7esWToMRD6XnbXmc5WgA",
+          "source": "Hacker News"
+        },
+        {
+          "title": "ChatGPT'ye Görsel Reklam Formatı",
+          "link": "https://openai.com/index/new-chatgpt-ads-format-and-measurement",
+          "source": "OpenAI"
+        },
+        {
+          "title": "StarCraft'ta Yapay Zeka Hile Yaptı",
+          "link": "https://www.theverge.com/ai-artificial-intelligence/1004543/openai-gpt-cheat-starcraft",
+          "source": "The Verge AI"
+        },
+        {
+          "title": "DraftKings, Bağımlı Kumarbazları Hedefliyor",
+          "link": "https://www.eff.org/deeplinks/2026/09/draftkings-using-ai-supercharge-harms-online-behavioral-advertising",
+          "source": "Hacker News"
+        },
+        {
+          "title": "Apple, AI Ajanlarına Karşı Disk İznini Değiştirdi",
+          "link": "https://arstechnica.com/security/2026/10/apple-changes-full-disk-access-permissions-to-curb-abuse-from-ai-agents/",
+          "source": "Ars Technica"
+        },
+        {
+          "title": "Anthropic'ten 100 Milyon Dolarlık Eğitim Hamlesi",
+          "link": "https://www.anthropic.com/news/claude-frontier-academy",
+          "source": "Anthropic"
+        },
+        {
+          "title": "RAM Kıtlığı 2028'e Kadar Sürecek",
+          "link": "https://arstechnica.com/information-technology/2026/10/memory-supplies-are-only-getting-tighter-micron-ceo-says/",
+          "source": "Ars Technica"
+        },
+        {
+          "title": "SynthID Bio: Proteinlere Filigran",
+          "link": "https://deepmind.google/blog/introducing-synthid-bio/",
+          "source": "Google DeepMind"
+        },
+        {
+          "title": "Qwen3.8-27B-Humanlike-Chat 2.0",
+          "link": "https://www.reddit.com/r/LocalLLaMA/comments/1wvxl4n/qwen3827bhumanlikechat_20_texts_like_a_human_now/",
+          "source": "Reddit r/LocalLLaMA"
+        },
+        {
+          "title": "AstaBrief Açık Kaynak Oldu",
+          "link": "https://huggingface.co/blog/allenai/astabrief",
+          "source": "Hugging Face"
+        },
+        {
+          "title": "Konuşma Ajanlarında Gizlilik Analizi",
+          "link": "https://jorgegarciaherrero.com/wp-content/interactivos/20260916-Prompt-like-a-butterfly-sting-like-a-tracker-(clean).pdf",
+          "source": "Hacker News"
+        },
+        {
+          "title": "Gemini'da Ücretsiz Kullanıcıya Kısıtlama",
+          "link": "https://webrazzi.com/2026/10/05/google-gemini-da-ucretsiz-ve-ai-plus-kullanicilarinin-model-erisimini-kisitliyor/",
+          "source": "Webrazzi"
+        },
+        {
+          "title": "TÜİK: Yapay Zeka Kullanımı Bir Yılda İkiye Katlandı",
+          "link": "https://www.webtekno.com/turkiye-yapay-zeka-kullanimi-tuik-rapor-h226309.html",
+          "source": "Webtekno"
+        },
+        {
+          "title": "Rönesans Holding, Digital Realty'yi Türkiye'ye Getiriyor",
+          "link": "https://egirisim.com/2026/10/02/ronesans-holding-digital-realtyyi-turkiyeye-yatirim-ortagi-olarak-getiriyor/",
+          "source": "Egirişim"
+        },
+        {
+          "title": "Narron Raporu: Yapay Zeka Türkiye'de Hangi Markaları Öneriyor?",
+          "link": "https://egirisim.com/2026/10/01/yerli-girisim-narrondan-ai-raporu-yapay-zeka-turkiyede-hangi-e-ticaret-markalarini-oneriyor/",
+          "source": "Egirişim"
+        }
+      ]
     }
   ]
 }
