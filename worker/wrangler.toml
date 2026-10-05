@@ -1,6 +1,11 @@
-# Abonelik onayı, abonelikten çıkma ve 👍/👎 oyları için Cloudflare Worker.
-# .github/workflows/worker.yml ile yayınlanır; GCP_SA_KEY ve SPREADSHEET_ID sırları oradan aktarılır.
+# Abonelik sayfası (/abone), abonelik onayı, abonelikten çıkma ve 👍/👎 oyları için Cloudflare Worker.
+# .github/workflows/worker.yml ile yayınlanır; GCP_SA_KEY, SPREADSHEET_ID, EMAIL_SENDER ve EMAIL_PASSWORD
+# sırları oradan aktarılır.
 name = "ai-radar"
 main = "src/index.js"
 compatibility_date = "2026-09-01"
 workers_dev = true
+
+[vars]
+# Abonelik sayfasındaki "Geçmiş sayılar" bağlantısı (GitHub Pages arşivi)
+ARCHIVE_URL = "https://emrehekimoglu.github.io/ai-weekly-news/"
