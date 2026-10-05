@@ -1,5 +1,6 @@
 """E-posta biçimi (konu, düz metin, iptal bağlantısı) ve Gmail SMTP ile gönderim."""
 
+import hashlib
 import logging
 import smtplib
 import time
@@ -49,10 +50,36 @@ def unsubscribe_url(email, token):
     return f"{config.WEB_APP_URL}?{urlencode({'action': 'unsubscribe', 'email': email, 'token': token})}"
 
 
-def build_message(digest, sub, subject):
+def issue_id(today=None):
+    """Oy bağlantılarındaki sayı kimliği: gönderim tarihi (data/history.json ile aynı); önizlemede ayrı tutulur."""
+    date = (today or datetime.now(timezone.utc)).strftime("%Y-%m-%d")
+    return f"onizleme-{date}" if config.PREVIEW else date
+
+
+def feedback_url_builder(issue, token):
+    """👍/👎 bağlantılarını üreten fonksiyon; web uygulaması yoksa None.
+
+    Bağlantılarda e-posta ve token yoktur. Aynı okurun oyunu güncelleyebilmek için yalnızca
+    token ile sayıdan türetilen, geri çevrilemeyen kısa bir kimlik (voter) eklenir.
+    story=0 sayının tamamı, 1.. ise haberin bültendeki sırasıdır.
+    """
+    if not config.WEB_APP_URL:
+        return None
+    voter = hashlib.sha256(f"{issue}:{token}".encode()).hexdigest()[:12] if token else ""
+
+    def build(story, vote):
+        params = {"action": "vote", "issue": issue, "story": story, "v": vote}
+        if voter:
+            params["voter"] = voter
+        return f"{config.WEB_APP_URL}?{urlencode(params)}"
+    return build
+
+
+def build_message(digest, sub, subject, issue=None):
     """Tek bir abone için şablondan HTML + düz metin e-postayı ve iptal başlığını hazırlar."""
     email = sub["email"]
     unsub_url = unsubscribe_url(email, sub.get("token", ""))
+    feedback_url = feedback_url_builder(issue or issue_id(), sub.get("token", ""))
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
@@ -62,8 +89,8 @@ def build_message(digest, sub, subject):
         msg["List-Unsubscribe"] = f"<{unsub_url}>"
 
     # Düz metin önce, HTML sonra: istemciler desteklediği son parçayı gösterir
-    msg.attach(MIMEText(render_text(digest, unsub_url), "plain", "utf-8"))
-    msg.attach(MIMEText(render_html(digest, unsub_url), "html", "utf-8"))
+    msg.attach(MIMEText(render_text(digest, unsub_url, feedback_url), "plain", "utf-8"))
+    msg.attach(MIMEText(render_html(digest, unsub_url, feedback_url), "html", "utf-8"))
     return msg
 
 
@@ -78,6 +105,7 @@ def send_all(digest, recipients, subject=None):
 
     log.info("Toplam %d kişiye e-posta gönderimi başlıyor...", len(recipients))
     subject = subject or newsletter_subject(digest=digest)
+    issue = issue_id()
     failed = []
 
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
@@ -85,7 +113,7 @@ def send_all(digest, recipients, subject=None):
         for sub in recipients:
             email = sub["email"]
             try:
-                server.sendmail(config.EMAIL_SENDER, email, build_message(digest, sub, subject).as_string())
+                server.sendmail(config.EMAIL_SENDER, email, build_message(digest, sub, subject, issue).as_string())
                 log.info("✓ Başarıyla gönderildi: %s", mask_email(email))
                 time.sleep(1)
             except Exception as e:
