@@ -41,6 +41,8 @@ DRY_RUN = os.environ.get("DRY_RUN", "").lower() == "true"
 # "true" ise bülten tam üretilir ama sadece sahibine (PREVIEW_EMAIL, yoksa EMAIL_RECEIVER) gönderilir
 PREVIEW = os.environ.get("PREVIEW", "").lower() == "true"
 PREVIEW_EMAIL = os.environ.get("PREVIEW_EMAIL")
+# Zamanlanmış (cron) çalışma mı? Yedek zamanlama, bu hafta zaten gönderilmiş sayıyı tekrar göndermez.
+SCHEDULED = os.environ.get("GITHUB_EVENT_NAME") == "schedule"
 PREVIEW_FILE = "newsletter.html"
 # Abonelere gönderilen bülten (kişisel iptal bağlantısı olmadan); iş akışı bunu
 # GitHub Pages arşivine ekler (archive.py). Önizleme ve DRY_RUN bu dosyayı yazmaz.
