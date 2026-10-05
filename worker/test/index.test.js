@@ -85,3 +85,15 @@ test("invalid requests are rejected without touching the sheet", async () => {
   assert.deepEqual(cleanVote({ issue: "onizleme-2026-10-12", story: "12", v: "up", voter: "" }),
                    { issue: "onizleme-2026-10-12", story: 12, v: "up", voter: "" });
 });
+
+test("errors show Google's short message on the page, not the request", async () => {
+  globalThis.fetch = async (url) => url.startsWith("https://oauth2")
+    ? Response.json({ access_token: "tok" })
+    : new Response(JSON.stringify({ error: { code: 403, message: "The caller does not have permission" } }),
+                   { status: 403 });
+  const res = await get("action=unsubscribe&email=a%40x.com&token=t");
+  assert.equal(res.status, 500);
+  const html = await res.text();
+  assert.match(html, /Sheets API 403: The caller does not have permission/);
+  assert.doesNotMatch(html, /SHEET/);
+});
