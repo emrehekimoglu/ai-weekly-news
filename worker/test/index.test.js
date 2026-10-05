@@ -14,7 +14,9 @@ const env = {
 /** Bellekte duran sahte tablo: { "": ilk sayfa satırları, "Geri Bildirim": ... } */
 function fakeGoogle(tabs) {
   const calls = [];
-  globalThis.fetch = async (url, opts = {}) => {
+  // Workers'taki gibi: fetch başka bir nesneye bağlı çağrılırsa hata verir
+  globalThis.fetch = async function (url, opts = {}) {
+    if (this !== undefined && this !== globalThis) throw new TypeError("Illegal invocation");
     calls.push({ url, method: opts.method || "GET", body: opts.body });
     if (url.startsWith("https://oauth2.googleapis.com")) return Response.json({ access_token: "tok" });
     const path = decodeURIComponent(url.split("/spreadsheets/SHEET")[1].split("?")[0]);
