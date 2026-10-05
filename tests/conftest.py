@@ -2,7 +2,7 @@
 
 import pytest
 
-from newsletter import app, config
+from newsletter import app, config, stats
 from newsletter.models import Digest, DigestEntry, NewsItem, Stat
 from newsletter.sources import Source
 
@@ -30,6 +30,14 @@ def isolated_history(monkeypatch, tmp_path):
     path = tmp_path / "history.json"
     monkeypatch.setattr(config, "HISTORY_FILE", str(path))
     return path
+
+
+@pytest.fixture(autouse=True)
+def no_sheets_network(monkeypatch):
+    """Testler gerçek Google Sheets'e asla bağlanmaz."""
+    def fail():
+        raise RuntimeError("testte Sheets'e bağlanılmaz")
+    monkeypatch.setattr(stats, "_open_spreadsheet", fail)
 
 
 @pytest.fixture(autouse=True)

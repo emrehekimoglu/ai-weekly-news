@@ -4,7 +4,7 @@ import logging
 import sys
 from datetime import datetime, timezone
 
-from newsletter import config, history, llm, mailer, subscribers
+from newsletter import config, history, llm, mailer, stats, subscribers
 from newsletter.dedup import remove_duplicates
 from newsletter.render import render_html
 from newsletter.sources import SOURCES, collect
@@ -67,10 +67,14 @@ def main():
     else:
         recipients, sheets_error = subscribers.get_subscribers()
         failed = mailer.send_all(digest, recipients)
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         if failed is not None and len(failed) < len(recipients):
-            history.record(digest, datetime.now(timezone.utc).strftime("%Y-%m-%d"))
+            history.record(digest, today)
             # Web arşivi için ortak (kişisel iptal bağlantısı olmayan) sürüm
             with open(config.ARCHIVE_FILE, "w", encoding="utf-8") as f:
                 f.write(render_html(digest))
+        # Sadece abone listesi Sheets'ten okunduysa; önizleme ve DRY_RUN buraya hiç gelmez
+        if failed is not None and sheets_error is None:
+            stats.record(today, sent=len(recipients) - len(failed), failed=len(failed))
     if failed is None or failed or sheets_error:
         sys.exit(1)
