@@ -111,15 +111,25 @@ Votes land in a *Geri Bildirim* sheet of the subscriber spreadsheet (created on 
 
 ## Link pages (Cloudflare Worker)
 
-Every link a reader clicks (confirming a signup, unsubscribing, voting) opens [`worker/src/index.js`](worker/src/index.js), a Cloudflare Worker. It replaced an Apps Script web app, which showed Google Drive's "Maalesef şu anda dosyayı açamıyoruz" page to anyone signed in to more than one Google account. The Worker reads and writes the subscriber sheet through the Google Sheets API with the same service account as the newsletter (`GCP_SA_KEY`), so readers never touch Google sign-in. It accepts the same addresses the old web app did:
+Every link a reader clicks (signing up, confirming a signup, unsubscribing, voting) opens [`worker/src/index.js`](worker/src/index.js), a Cloudflare Worker. It replaced an Apps Script web app, which showed Google Drive's "Maalesef şu anda dosyayı açamıyoruz" page to anyone signed in to more than one Google account. The Worker reads and writes the subscriber sheet through the Google Sheets API with the same service account as the newsletter (`GCP_SA_KEY`), so readers never touch Google sign-in. It accepts the same addresses the old web app did:
 
 - `?action=confirm&email=…&token=…` sets column C of the matching row to `AKTIF`.
 - `?action=unsubscribe&email=…&token=…` sets it to `IPTAL`.
 - `?action=vote&…` records a vote, as described above.
 
-The signup form still runs the Apps Script `onFormSubmit` trigger, which writes the token and sends the confirmation email; only its `WEB_APP_URL` line points at the Worker now.
+### Signup page
 
-The Worker is deployed by [`.github/workflows/worker.yml`](.github/workflows/worker.yml) on every push to `main` that changes `worker/`, or by hand from the Actions tab. It passes `GCP_SA_KEY` and `SPREADSHEET_ID` to the Worker as secrets. Without the Cloudflare secrets the workflow only runs the tests and prints a warning. Tests: `cd worker && node --test` (no network; Google is faked).
+The Worker also serves the newsletter's own signup page at `/abone` (and at the bare Worker address). A reader types their email and presses *Abone Ol*; the Worker then:
+
+1. Checks the address and the first sheet. If the address's newest row is `AKTIF` it says "Zaten abonesiniz" and sends nothing. If a confirmation email went to the same address in the last 10 minutes, it doesn't send another.
+2. Sends a confirmation email from `EMAIL_SENDER` through Gmail SMTP (`smtp.gmail.com:465`, with the same app password as the newsletter), using [`worker/src/smtp.js`](worker/src/smtp.js).
+3. Appends a row `time (UTC) | email | BEKLIYOR | token` to the first sheet. The confirm link in the email sets it to `AKTIF`, exactly like a Google Form signup.
+
+To protect the Gmail account's daily sending limit (which the Monday issue also uses), the page sends at most 50 confirmation emails per 24 hours, counted from the rows it wrote. A hidden field catches simple bots. Nothing goes through Google sign-in.
+
+The Google Form keeps working alongside it: its Apps Script `onFormSubmit` trigger still writes the token and sends its own confirmation email, with `WEB_APP_URL` pointing at the Worker.
+
+The Worker is deployed by [`.github/workflows/worker.yml`](.github/workflows/worker.yml) on every push to `main` that changes `worker/`, or by hand from the Actions tab. It passes `GCP_SA_KEY`, `SPREADSHEET_ID`, `EMAIL_SENDER` and `EMAIL_PASSWORD` to the Worker as secrets; the archive address for the signup page is `ARCHIVE_URL` in [`worker/wrangler.toml`](worker/wrangler.toml). Without the Cloudflare secrets the workflow only runs the tests and prints a warning. Tests: `cd worker && node --test` (no network; Google is faked).
 
 One-time setup:
 
@@ -128,6 +138,7 @@ One-time setup:
 3. Share the subscriber sheet with the service account's `client_email` as **Editor** (the newsletter itself still only reads).
 4. Run *Worker'ı Yayınla* from the Actions tab. The Worker is at `https://ai-radar.<subdomain>.workers.dev/`.
 5. Set the `WEB_APP_URL` secret to that address, and set `WEB_APP_URL` in the Apps Script `Code.js` to it as well, so confirmation emails use it.
+6. Set the `SIGNUP_URL` secret to `https://ai-radar.<subdomain>.workers.dev/abone`, so the email and the web archive link to the signup page.
 
 
 ## Schedule and manual runs
@@ -169,7 +180,7 @@ At startup (except in `dry_run`) the run stops with a clear error if any "Yes" s
 | `CLOUDFLARE_API_TOKEN` | For the Worker | Cloudflare API token that can edit Workers |
 | `CLOUDFLARE_ACCOUNT_ID` | For the Worker | Cloudflare account ID |
 | `EMAIL_RECEIVER` | No | Fallback single recipient when no other subscriber list is available |
-| `SIGNUP_URL` | No | Signup form link (e.g. the Google Form). Adds a "forward to a friend / subscribe" box to the email and a subscribe link to the web archive; hidden when unset |
+| `SIGNUP_URL` | No | Signup page link (the Worker's `/abone` page, or the Google Form). Adds a "forward to a friend / subscribe" box to the email and a subscribe link to the web archive; hidden when unset |
 | `PREVIEW_EMAIL` | No | Where `preview` runs send the newsletter (falls back to `EMAIL_RECEIVER`) |
 | `REDDIT_CLIENT_ID` | No | Reddit app ID; enables the OAuth path |
 | `REDDIT_CLIENT_SECRET` | No | Reddit app secret; enables the OAuth path |
