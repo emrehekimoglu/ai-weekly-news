@@ -6,22 +6,32 @@
  *   ?action=unsubscribe&email=…&token=…  abonelikten çıkma (C sütunu → IPTAL)
  *   ?action=vote&issue=…&story=…&v=…&voter=…  👍/👎 oyu ("Geri Bildirim" sayfası)
  *
+ * Ayrıca bültenin kendi abonelik sayfası: GET /abone formu gösterir, POST /abone tabloya BEKLIYOR satırı
+ * ekleyip Gmail üzerinden onay e-postası gönderir (çift onay; Google Formu'na gerek kalmaz).
+ *
  * Abone tablosu Google Sheets API ile, servis hesabı (GCP_SA_KEY) üzerinden okunup yazılır;
  * tablo bu hesapla "Düzenleyen" olarak paylaşılmış olmalı. Okurun Google hesabıyla hiçbir ilgisi
  * yoktur; bu yüzden birden fazla Google hesabı açık tarayıcılarda da çalışır.
  */
 
+import { sendMail } from "./smtp.js";
+
 const SHEETS = "https://sheets.googleapis.com/v4/spreadsheets";
 const SCOPE = "https://www.googleapis.com/auth/spreadsheets";
 const FEEDBACK_SHEET = "Geri Bildirim";
+const SIGNUP_COOLDOWN_MS = 10 * 60 * 1000;  // aynı adrese 10 dakikada en fazla bir onay e-postası
+const SIGNUPS_PER_DAY = 50;  // Gmail'in günlük gönderim sınırı bültene kalsın diye
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    if (url.pathname !== "/") return page(404, "🤔", "Sayfa bulunamadı", "");
     const p = Object.fromEntries(url.searchParams);
+    const isSignup = url.pathname === "/abone" || url.pathname === "/abone/";
+    if (!isSignup && url.pathname !== "/") return page(404, "🤔", "Sayfa bulunamadı", "");
+    if (request.method === "GET" && (isSignup || !p.action)) return signupPage(env);
     try {
       const sheets = new Sheets(env);
+      if (isSignup && request.method === "POST") return await signup(sheets, env, request, url);
       if (p.action === "vote") return await vote(sheets, p);
       if (p.action === "confirm" || p.action === "unsubscribe") return await subscription(sheets, p);
       return page(400, "🤔", "Geçersiz istek", "Bu bağlantı tanınmadı.");
@@ -54,6 +64,80 @@ async function subscription(sheets, p) {
     }
   }
   return page(404, "🤔", "Kayıt bulunamadı", "Eşleşen kayıt bulunamadı veya bağlantı geçersiz.");
+}
+
+/** Geçerli görünen, başlık/SMTP komutu enjeksiyonuna izin vermeyen e-posta adresi; aksi halde null. */
+export function cleanEmail(value) {
+  const email = String(value || "").trim().toLowerCase();
+  const part = "[^\\s@<>()\\[\\],;:\"\\\\]+";
+  return email.length <= 254 && new RegExp(`^${part}@${part}\\.${part}$`).test(email) ? email : null;
+}
+
+const utcStamp = (d = new Date()) => d.toISOString().slice(0, 19).replace("T", " ");
+const parseStamp = (s) => /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(s) ? Date.parse(`${s.replace(" ", "T")}Z`) : NaN;
+
+async function signup(sheets, env, request, url) {
+  const form = await request.formData().catch(() => new FormData());
+  // Gizli "website" alanını yalnızca botlar doldurur; onlara başarı sayfası gösterilir, hiçbir şey yazılmaz
+  if (form.get("website")) return checkInbox();
+  const email = cleanEmail(form.get("email"));
+  if (!email) return signupPage(env, "Lütfen geçerli bir e-posta adresi yazın.", form.get("email"), 400);
+
+  // İlk sayfa (Form yanıtları): A zaman, B e-posta, C durum, D token. Her adresin en yeni satırı geçerlidir.
+  const rows = await sheets.get("A:D");
+  const now = Date.now();
+  let latest = null, recent = 0;
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][1] || "").trim().toLowerCase() === email) latest = rows[i];
+    if (now - parseStamp(String(rows[i][0] || "")) < 24 * 3600 * 1000) recent++;
+  }
+  const status = latest ? String(latest[2] || "").trim().toUpperCase() : "";
+  if (status === "AKTIF") {
+    return page(200, "✓", "Zaten abonesiniz", "Bu adres listede. Bülten her Pazartesi sabahı gelir; "
+                + "göremiyorsanız spam ve Promosyonlar klasörüne bakın.", "#16a34a");
+  }
+  if (status === "BEKLIYOR" && now - parseStamp(String(latest[0] || "")) < SIGNUP_COOLDOWN_MS) return checkInbox();
+  if (recent >= SIGNUPS_PER_DAY) {
+    return page(429, "⏳", "Çok fazla istek", "Bugün çok sayıda kayıt geldi. Lütfen yarın tekrar deneyin.");
+  }
+
+  const token = crypto.randomUUID();
+  const link = `${url.origin}/?action=confirm&email=${encodeURIComponent(email)}&token=${encodeURIComponent(token)}`;
+  // Önce e-posta: gönderilemezse tabloya satır eklenmez ve okur hemen tekrar deneyebilir
+  await sendMail(env, { to: email, ...confirmEmail(link) });
+  await sheets.append("A:D", [[utcStamp(), email, "BEKLIYOR", token]]);
+  return checkInbox();
+}
+
+function checkInbox() {
+  return page(200, "📬", "Neredeyse tamam!", "Size bir onay e-postası gönderdik. İçindeki "
+              + "\"Aboneliği Onayla\" düğmesine tıkladığınızda kaydınız tamamlanır. E-posta birkaç dakika "
+              + "içinde gelmezse spam klasörüne bakın.");
+}
+
+/** Onay e-postasının konusu, düz metni ve HTML'i. */
+export function confirmEmail(link) {
+  const href = esc(link);
+  return {
+    subject: "Aboneliğinizi onaylayın: AI & Teknoloji Radarı",
+    text: "Merhaba,\n\nAI & Teknoloji Radarı'na abone olmak için bu bağlantıyı açın:\n"
+      + `${link}\n\nBu isteği siz yapmadıysanız bu e-postayı yok sayabilirsiniz; onaylamadığınız sürece `
+      + "size bülten gönderilmez.\n",
+    html: `<!DOCTYPE html><html lang="tr"><body style="margin:0;padding:32px 16px;background:#eceff4;
+font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#10141c">
+<div style="max-width:480px;margin:0 auto;background:#fff;border:1px solid #dfe3ea;padding:32px 28px">
+<div style="font:700 12px sans-serif;letter-spacing:2px;margin-bottom:20px">AI &amp; TEKNOLOJİ RADARI</div>
+<h1 style="font:700 24px Georgia,serif;margin:0 0 12px">Aboneliğinizi onaylayın</h1>
+<p style="color:#454d5c;line-height:1.6;margin:0 0 24px">Haftalık yapay zekâ bültenine kaydolduğunuz için
+teşekkürler. Kaydı tamamlamak için aşağıdaki düğmeye tıklayın.</p>
+<p style="margin:0 0 24px"><a href="${href}" style="display:inline-block;background:#2563eb;color:#fff;
+font-weight:600;text-decoration:none;padding:12px 22px">Aboneliği Onayla</a></p>
+<p style="color:#6b7280;font-size:13px;line-height:1.5;margin:0">Düğme çalışmazsa bu adresi tarayıcınıza
+yapıştırın:<br><a href="${href}" style="color:#2563eb;word-break:break-all">${href}</a></p>
+<p style="color:#6b7280;font-size:13px;line-height:1.5;margin:16px 0 0">Bu isteği siz yapmadıysanız bu
+e-postayı yok sayabilirsiniz; onaylamadığınız sürece size bülten gönderilmez.</p>
+</div></body></html>`,
+  };
 }
 
 /** Sadece beklenen biçimdeki oy değerlerini kabul eder; aksi halde null. */
@@ -169,17 +253,54 @@ async function signJwt(claims, pem) {
   return `${input}.${b64url(sig)}`;
 }
 
-const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+  .replace(/"/g, "&quot;");
+
+const STYLE = `body{margin:0;padding:48px 16px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,
+sans-serif;background:#eceff4;color:#10141c;text-align:center}.card{max-width:440px;margin:0 auto;background:#fff;
+border:1px solid #dfe3ea;padding:32px 24px}.big{font-size:44px}h1{font:700 24px Georgia,serif;margin:12px 0 8px}
+p{color:#454d5c;line-height:1.5;margin:0}.brand{font:700 12px sans-serif;letter-spacing:2px;margin-bottom:24px}`;
+
+function html(status, title, body, extraStyle = "", head = "") {
+  return new Response(`<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1"><title>${title}</title>${head}
+<style>${STYLE}${extraStyle}</style></head><body><div class="brand">AI &amp; TEKNOLOJİ RADARI</div>
+${body}</body></html>`, { status, headers: { "content-type": "text/html; charset=utf-8",
+                                             "cache-control": "no-store" } });
+}
 
 function page(status, icon, title, text, color = "#10141c") {
-  const html = `<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1"><title>AI &amp; Teknoloji Radarı</title>
-<style>body{margin:0;padding:48px 20px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-background:#eceff4;color:#10141c;text-align:center}.card{max-width:440px;margin:0 auto;background:#fff;
-border:1px solid #dfe3ea;padding:32px 24px}.big{font-size:44px}h1{font:700 24px Georgia,serif;margin:12px 0 8px}
-p{color:#454d5c;line-height:1.5;margin:0}.brand{font:700 12px sans-serif;letter-spacing:2px;margin-bottom:24px}</style>
-</head><body><div class="brand">AI &amp; TEKNOLOJİ RADARI</div><div class="card"><div class="big">${esc(icon)}</div>
-<h1 style="color:${color}">${esc(title)}</h1><p>${esc(text)}</p></div></body></html>`;
-  return new Response(html, { status, headers: { "content-type": "text/html; charset=utf-8",
-                                                  "cache-control": "no-store" } });
+  return html(status, "AI &amp; Teknoloji Radarı", `<div class="card"><div class="big">${esc(icon)}</div>
+<h1 style="color:${color}">${esc(title)}</h1><p>${esc(text)}</p></div>`);
+}
+
+const SIGNUP_STYLE = `.card{max-width:480px;text-align:left;padding:36px 28px}h1{font-size:28px;line-height:1.25;
+margin:0 0 12px}ul{color:#454d5c;line-height:1.6;padding-left:20px;margin:16px 0 24px}
+form{display:flex;flex-wrap:wrap;gap:8px}input[type=email]{flex:1 1 220px;min-width:0;font:inherit;font-size:16px;
+padding:12px;border:1px solid #c5cbd6}button{flex:0 0 auto;font:inherit;font-weight:600;font-size:16px;
+padding:12px 20px;border:0;background:#2563eb;color:#fff;cursor:pointer}button:hover{background:#1d4ed8}
+.err{color:#dc2626;font-size:14px;margin:0 0 8px}.small{font-size:13px;color:#6b7280;margin-top:16px}
+.hp{position:absolute;left:-9999px}a{color:#2563eb}.more{margin-top:20px;font-size:14px}`;
+
+const SIGNUP_DESC = "Haftanın yapay zekâ ve teknoloji gelişmeleri, her Pazartesi sabahı Türkçe özetle gelen kutunuzda.";
+
+/** Bültenin kendi abonelik sayfası (Google hesabı gerektirmez). */
+function signupPage(env, error = "", value = "", status = 200) {
+  const archive = env.ARCHIVE_URL
+    ? `<p class="more"><a href="${esc(env.ARCHIVE_URL)}">Geçmiş sayılara göz atın →</a></p>` : "";
+  const head = `<meta name="description" content="${SIGNUP_DESC}">
+<meta property="og:title" content="AI &amp; Teknoloji Radarı"><meta property="og:description" content="${SIGNUP_DESC}">`;
+  return html(status, "AI &amp; Teknoloji Radarı: Ücretsiz Abone Olun", `<div class="card">
+<h1>Haftanın yapay zekâ gelişmeleri, her Pazartesi gelen kutunuzda</h1>
+<p>AI &amp; Teknoloji Radarı, haftanın öne çıkan haberlerini kısa ve Türkçe bir özetle size getirir. Ücretsizdir.</p>
+<ul><li>Yeni modeller ve şirket duyuruları</li><li>Öne çıkan araştırma makaleleri</li>
+<li>Gündemdeki açık kaynak projeler</li><li>Türkiye'den yapay zekâ haberleri</li></ul>
+${error ? `<p class="err" role="alert">${esc(error)}</p>` : ""}
+<form method="post" action="/abone"><label class="hp">Web sitesi <input name="website" tabindex="-1"
+autocomplete="off"></label><input type="email" name="email" required maxlength="254" autocomplete="email"
+placeholder="ornek@eposta.com" aria-label="E-posta adresiniz" value="${esc(value || "")}">
+<button type="submit">Abone Ol</button></form>
+<p class="small">Size bir onay e-postası göndereceğiz; kayıt, içindeki düğmeye tıkladığınızda tamamlanır.
+Adresiniz yalnızca bülten için kullanılır ve her sayıdaki bağlantıyla tek tıkla ayrılabilirsiniz.</p>
+${archive}</div>`, SIGNUP_STYLE, head);
 }
