@@ -7,7 +7,6 @@ son sayıların başlıkları da modele "bunları tekrar seçme" diye verilir.
 import json
 import logging
 import os
-from datetime import datetime, timedelta, timezone
 
 from newsletter import config
 from newsletter.dedup import normalize_link
@@ -45,13 +44,6 @@ def remove_seen(items, issues):
     if len(fresh) < len(items):
         log.info("Önceki sayılarda yer alan %d haber çıkarıldı.", len(items) - len(fresh))
     return fresh
-
-
-def sent_within(issues, days, today=None):
-    """Son `days` gün içinde (bugün dahil) gönderilmiş bir sayı var mı?"""
-    today = today or datetime.now(timezone.utc).date()
-    cutoff = (today - timedelta(days=days - 1)).isoformat()
-    return any(str(issue.get("date", "")) >= cutoff for issue in issues)
 
 
 def record(digest, date, path=None):
