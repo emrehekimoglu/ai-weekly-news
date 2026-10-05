@@ -82,7 +82,7 @@ If the sheet is configured but cannot be read, or has no `AKTIF` rows, the newsl
 
 - **Subject** ends with the send date, e.g. `🚀 Haftalık Yapay Zekâ & Teknoloji Radarı • 28 Eylül 2026`, so Gmail shows each week as its own conversation instead of grouping them.
 - **Body** is `multipart/alternative`: a plain-text version from `newsletter.txt.j2`, followed by the HTML version from `newsletter.html.j2`. Both are rendered per subscriber so the unsubscribe link is theirs. Text from the model is HTML-escaped.
-- **Unsubscribe**: a footer link and a `List-Unsubscribe` header, both pointing to `WEB_APP_URL?action=unsubscribe&email=…&token=…`. The unsubscribe web app itself is not in this repository. If `WEB_APP_URL` or the subscriber's token is missing, the footer link is `#` and the header is left out. The one-click `List-Unsubscribe-Post` header is not sent, because it only works if the web app accepts a POST request.
+- **Unsubscribe**: a footer link and a `List-Unsubscribe` header, both pointing to `WEB_APP_URL?action=unsubscribe&email=…&token=…`. The page behind it is the Cloudflare Worker in [`worker/`](worker) (see [Link pages](#link-pages-cloudflare-worker)). If `WEB_APP_URL` or the subscriber's token is missing, the footer link is `#` and the header is left out. The one-click `List-Unsubscribe-Post` header is not sent, because it only works if the web app accepts a POST request.
 - **Feedback**: each story has small 👍 👎 links, and a *Bu sayı nasıldı?* box above the footer rates the whole issue (the plain-text part has only the issue vote). See [Feedback links](#feedback-links).
 - **Sharing**: the footer links to the issue's web archive page (`https://<owner>.github.io/<repo>/issues/YYYY-MM-DD.html`, derived from `GITHUB_REPOSITORY`; override with an `ARCHIVE_URL` env value). Each archive page ends with X, LinkedIn, WhatsApp, Telegram and email share links that carry only that public page address.
 - **Logo**: the template uses an inline CSS badge with an emoji instead of an external image, so there is nothing for mail clients to block.
@@ -105,9 +105,30 @@ After every real send, `newsletter/stats.py` appends one row to a **Stats** tab 
 
 ## Feedback links
 
-The 👍/👎 links point to `WEB_APP_URL?action=vote&issue=YYYY-MM-DD&story=N&v=up|down&voter=…`, handled by the same Apps Script web app as unsubscribe. `story=0` is the whole issue; `1`, `2`, … is the story's position in the email, which matches the order of that issue's `entries` in [`data/history.json`](data/history.json). Links never carry the subscriber's email or token: `voter` is the first 12 hex characters of `sha256("<issue>:<token>")`, so a reader can change their vote but can't be followed across issues or traced back to an address. Subscribers without a token (fallback recipients) vote anonymously. Preview emails use `issue=onizleme-YYYY-MM-DD` so test clicks stay separate. The links are left out of the web archive and of the saved preview HTML.
+The 👍/👎 links point to `WEB_APP_URL?action=vote&issue=YYYY-MM-DD&story=N&v=up|down&voter=…`, handled by the same Worker as unsubscribe. `story=0` is the whole issue; `1`, `2`, … is the story's position in the email, which matches the order of that issue's `entries` in [`data/history.json`](data/history.json). Links never carry the subscriber's email or token: `voter` is the first 12 hex characters of `sha256("<issue>:<token>")`, so a reader can change their vote but can't be followed across issues or traced back to an address. Subscribers without a token (fallback recipients) vote anonymously. Preview emails use `issue=onizleme-YYYY-MM-DD` so test clicks stay separate. The links are left out of the web archive and of the saved preview HTML.
 
-The handler is [`apps-script/feedback.gs`](apps-script/feedback.gs), kept here for reference. To install it, open the unsubscribe web app's Apps Script project, add the file, set `FEEDBACK_SPREADSHEET_ID` in it to the subscriber sheet's ID, put `if (e.parameter.action === 'vote') return handleVote(e);` at the top of `doGet(e)`, and redeploy the existing deployment as a new version (a new deployment would change `WEB_APP_URL`). The deployment must run as you and be accessible to anyone. Votes land in a *Geri Bildirim* sheet (created on the first vote) with the columns time, issue, story, vote and voter. "Türkiye'den" stories are numbered after the main stories, as in `history.json`. The vote is saved as soon as the link is opened, and the page shows the error text if saving fails. A mail scanner that opens every link could cast a vote; because each reader's later vote on the same story replaces the earlier one, a real click after that still counts.
+Votes land in a *Geri Bildirim* sheet of the subscriber spreadsheet (created on the first vote) with the columns time (UTC), issue, story, vote and voter. "Türkiye'den" stories are numbered after the main stories, as in `history.json`. The vote is saved as soon as the link is opened. A mail scanner that opens every link could cast a vote; because each reader's later vote on the same story replaces the earlier one, a real click after that still counts.
+
+## Link pages (Cloudflare Worker)
+
+Every link a reader clicks (confirming a signup, unsubscribing, voting) opens [`worker/src/index.js`](worker/src/index.js), a Cloudflare Worker. It replaced an Apps Script web app, which showed Google Drive's "Maalesef şu anda dosyayı açamıyoruz" page to anyone signed in to more than one Google account. The Worker reads and writes the subscriber sheet through the Google Sheets API with the same service account as the newsletter (`GCP_SA_KEY`), so readers never touch Google sign-in. It accepts the same addresses the old web app did:
+
+- `?action=confirm&email=…&token=…` sets column C of the matching row to `AKTIF`.
+- `?action=unsubscribe&email=…&token=…` sets it to `IPTAL`.
+- `?action=vote&…` records a vote, as described above.
+
+The signup form still runs the Apps Script `onFormSubmit` trigger, which writes the token and sends the confirmation email; only its `WEB_APP_URL` line points at the Worker now.
+
+The Worker is deployed by [`.github/workflows/worker.yml`](.github/workflows/worker.yml) on every push to `main` that changes `worker/`, or by hand from the Actions tab. It passes `GCP_SA_KEY` and `SPREADSHEET_ID` to the Worker as secrets. Without the Cloudflare secrets the workflow only runs the tests and prints a warning. Tests: `cd worker && node --test` (no network; Google is faked).
+
+One-time setup:
+
+1. Create a free Cloudflare account, open *Workers & Pages* once so it picks your `workers.dev` subdomain, and note the *Account ID* shown there.
+2. Create an API token (*My Profile → API Tokens → Create Token → Edit Cloudflare Workers* template) and add it as the `CLOUDFLARE_API_TOKEN` secret, with the account ID as `CLOUDFLARE_ACCOUNT_ID`.
+3. Share the subscriber sheet with the service account's `client_email` as **Editor** (the newsletter itself still only reads).
+4. Run *Worker'ı Yayınla* from the Actions tab. The Worker is at `https://ai-radar.<subdomain>.workers.dev/`.
+5. Set the `WEB_APP_URL` secret to that address, and set `WEB_APP_URL` in the Apps Script `Code.js` to it as well, so confirmation emails use it.
+
 
 ## Schedule and manual runs
 
@@ -144,7 +165,9 @@ At startup (except in `dry_run`) the run stops with a clear error if any "Yes" s
 | `EMAIL_PASSWORD` | Yes | Gmail app password for `EMAIL_SENDER` |
 | `GCP_SA_KEY` | For the Sheet | Google service account key, as the full JSON text |
 | `SPREADSHEET_ID` | For the Sheet | ID of the subscriber Google Sheet (shared with the service account) |
-| `WEB_APP_URL` | For unsubscribe links | Base URL of the unsubscribe web app |
+| `WEB_APP_URL` | For unsubscribe and vote links | Address of the Cloudflare Worker (see [Link pages](#link-pages-cloudflare-worker)) |
+| `CLOUDFLARE_API_TOKEN` | For the Worker | Cloudflare API token that can edit Workers |
+| `CLOUDFLARE_ACCOUNT_ID` | For the Worker | Cloudflare account ID |
 | `EMAIL_RECEIVER` | No | Fallback single recipient when no other subscriber list is available |
 | `SIGNUP_URL` | No | Signup form link (e.g. the Google Form). Adds a "forward to a friend / subscribe" box to the email and a subscribe link to the web archive; hidden when unset |
 | `PREVIEW_EMAIL` | No | Where `preview` runs send the newsletter (falls back to `EMAIL_RECEIVER`) |
