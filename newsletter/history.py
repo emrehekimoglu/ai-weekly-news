@@ -7,6 +7,7 @@ son sayıların başlıkları da modele "bunları tekrar seçme" diye verilir.
 import json
 import logging
 import os
+from datetime import datetime, timedelta, timezone
 
 from newsletter import config
 from newsletter.dedup import normalize_link
@@ -46,17 +47,30 @@ def remove_seen(items, issues):
     return fresh
 
 
-def record(digest, date, path=None):
-    """Gönderilen sayıyı kaydeder; sadece son HISTORY_ISSUES sayı tutulur."""
+def scheduled_send_within(issues, days, today=None):
+    """Son `days` gün içinde (bugün dahil) zamanlanmış (otomatik) bir çalışma sayı göndermiş mi?
+    Elle gönderilen sayılar sayılmaz."""
+    today = today or datetime.now(timezone.utc).date()
+    cutoff = (today - timedelta(days=days - 1)).isoformat()
+    return any(issue.get("scheduled") and str(issue.get("date", "")) >= cutoff for issue in issues)
+
+
+def record(digest, date, path=None, scheduled=False):
+    """Gönderilen sayıyı kaydeder; sadece son HISTORY_ISSUES sayı tutulur.
+    `scheduled`: sayı zamanlanmış çalışmayla mı gönderildi (aynı gün elle tekrar gönderilse de korunur)."""
     path = path or config.HISTORY_FILE
-    issues = [issue for issue in load(path) if issue.get("date") != date]
-    issues.append({
+    previous = load(path)
+    scheduled = scheduled or any(issue.get("date") == date and issue.get("scheduled") for issue in previous)
+    issues = [issue for issue in previous if issue.get("date") != date]
+    entry = {
         "date": date,
         "entries": [{"title": e.title, "link": e.item.link, "source": e.item.source} for e in digest.entries + digest.turkiye],
-    })
+    }
+    if scheduled:
+        entry["scheduled"] = True
+    issues.append(entry)
     issues = issues[-config.HISTORY_ISSUES:]
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
         json.dump({"issues": issues}, f, ensure_ascii=False, indent=2)
         f.write("\n")
-    log.info("Sayı geçmişe kaydedildi: %s (%d haber)", path, len(digest.entries))

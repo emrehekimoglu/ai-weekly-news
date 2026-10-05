@@ -113,7 +113,7 @@ The handler is [`apps-script/feedback.gs`](apps-script/feedback.gs), kept here f
 
 The workflow is [`.github/workflows/newsletter.yml`](.github/workflows/newsletter.yml).
 
-- **Schedule:** every Monday at 03:00 UTC (06:00 Turkey time), cron `0 3 * * 1`.
+- **Schedule:** every Monday at 03:00 UTC (06:00 Turkey time), cron `0 3 * * 1`, with a backup run at 04:37 UTC in case GitHub drops the first one. Issues sent by a scheduled run are marked `"scheduled": true` in `data/history.json`. The backup exits without doing anything if a scheduled run already sent an issue in the last 6 days. Manual sends don't count, so a manual issue on Sunday doesn't stop Monday's issue.
 - **Manual run:** Actions tab → *Haftalik Teknoloji ve AI Bulteni* → *Run workflow*. It has two inputs:
   - `dry_run` (default off): only collect data from the sources and print how many items each source returned, with every item's title, and how many are left after removing repeats. The LLM is not called and no email is sent.
   - `preview` (default off): generate the full newsletter, but email it only to the owner (`PREVIEW_EMAIL`, or `EMAIL_RECEIVER` if that is unset) with an `[ÖNİZLEME]` subject prefix. The subscriber list is never read. The HTML is also uploaded as the `newsletter-preview` run artifact.
