@@ -19,6 +19,10 @@ def setup_logging():
 
 def main():
     setup_logging()
+    if (config.SCHEDULED and not (config.DRY_RUN or config.PREVIEW)
+            and history.scheduled_send_within(history.load(), days=6)):
+        log.info("Bu hafta otomatik çalışma sayıyı zaten gönderdi; yedek çalışma bir şey yapmadan bitti.")
+        return
     if not config.DRY_RUN:
         problems = config.check_config()
         if problems:
@@ -69,7 +73,7 @@ def main():
         failed = mailer.send_all(digest, recipients)
         today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         if failed is not None and len(failed) < len(recipients):
-            history.record(digest, today)
+            history.record(digest, today, scheduled=config.SCHEDULED)
             # Web arşivi için ortak (kişisel iptal bağlantısı olmayan) sürüm
             with open(config.ARCHIVE_FILE, "w", encoding="utf-8") as f:
                 f.write(render_html(digest))
