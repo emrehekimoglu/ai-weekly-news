@@ -164,6 +164,7 @@ The workflow is [`.github/workflows/newsletter.yml`](.github/workflows/newslette
   - `preview` (default off): generate the full newsletter, but email it only to the owner (`PREVIEW_EMAIL`, or `EMAIL_RECEIVER` if that is unset) with an `[ÖNİZLEME]` subject prefix. The subscriber list is never read. The HTML is also uploaded as the `newsletter-preview` run artifact.
   - `fallback_test` (default off): a `preview` run with the main model deliberately set to a name that doesn't exist, so the backup model has to write the issue. If the preview email (subject starts with `[YEDEK MODEL TESTİ]`) arrives, the backup model works. If the run fails, the log says why.
   - `alert_test` (default off): send only a sample [failure alert](#failure-alert); nothing else runs.
+  - `telegram_test` (default off): post only a short test message to the [Telegram channel](#telegram-channel); nothing else runs and no email is sent.
   - `preview_to` (optional, only with `preview`): send this one preview to another address instead, for example a [mail-tester.com](https://www.mail-tester.com) test address to check the spam score.
 
 > [!WARNING]
@@ -191,9 +192,32 @@ Every issue that is actually sent to subscribers is also published to a public w
 
 How it works: after a real send, `newsletter/app.py` saves the shared newsletter HTML (rendered without any personal unsubscribe link) to `issue.html`. The workflow's *Web Arşivine Ekle* step then runs [`archive.py`](archive.py) on a checkout of the `gh-pages` branch (created on the first run) and pushes the result. Before publishing, `archive.py` removes the subscriber footer, any link carrying an unsubscribe action, `token=` or `email=` parameter, `mailto:` links, scripts and inline event handlers, so no subscriber data reaches the web. Re-running on the same day replaces that day's page.
 
+The index and every issue page carry a signup box. When `SIGNUP_URL` is the Worker's `/abone` page, the box is a real email form that posts straight to it (same `email` field and hidden `website` honeypot as the Worker's own form); for any other address it is a plain button. The index lists each issue with its headline.
+
+The archive also publishes an RSS feed at `https://<user>.github.io/ai-weekly-news/feed.xml` with the latest 20 issues (headline as title, the issue's preheader as description). The index advertises it with `<link rel="alternate">`, so feed readers find it from the archive address alone. The feed needs an absolute address, so it is skipped when no archive address is known.
+
+The [*Web Arşivini Yenile*](.github/workflows/archive.yml) workflow re-renders `index.html` and `feed.xml` on `gh-pages` without a new issue, and points old Google Form links in earlier issue pages at the current `SIGNUP_URL`. It runs on every push to `main` that changes `archive.py`, or by hand from the Actions tab.
+
 One-time setup, after the first real send has created the `gh-pages` branch: Settings → Pages → *Build and deployment* → Source: *Deploy from a branch* → Branch: `gh-pages`, folder `/ (root)` → Save. The site is then at `https://<user>.github.io/ai-weekly-news/`. GitHub Pages on a private repository needs a paid plan (GitHub Pro or higher), and the published site is public either way.
 
-To build the archive locally: `python archive.py newsletter.html site` writes `site/index.html` and today's issue page.
+To build the archive locally: `python archive.py newsletter.html site` writes `site/index.html`, `site/feed.xml` and today's issue page; `python archive.py --rebuild site` refreshes the index and feed only.
+
+## Telegram channel
+
+Every issue that is actually sent to subscribers is also posted to a Telegram channel, for readers who prefer Telegram to email. The post has the date, the headline, the two-sentence intro, up to five "30 saniyede" points (or story titles), a link to the issue's [web archive](#web-archive) page and, when `SIGNUP_URL` is set, a link to the signup page.
+
+How it works: after a real send, `newsletter/app.py` saves a short summary of the issue to `issue.json`. The workflow's *Telegram Kanalına Gönder* step runs `python -m newsletter.telegram` after the archive step has published the page, waits up to 4 minutes for GitHub Pages to serve it (so Telegram can show a link preview), then posts it with the Bot API. It never runs for `preview`, `fallback_test` or `dry_run` runs, or when the archive step failed. A sent issue is marked `"telegram": true` in `data/history.json`, so re-sending the same day's issue by hand doesn't post it twice.
+
+- Without `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`, the step does nothing.
+- If Telegram refuses the post, the run stays green: the problem goes into the "sent, with warnings" [failure alert](#failure-alert) email instead. The bot token never appears in logs or emails.
+
+One-time setup:
+
+1. **Create the bot.** In Telegram, open a chat with **@BotFather** (it has a blue check mark), send `/newbot`, give it a name (for example *AI & Teknoloji Radarı*) and a username ending in `bot`. BotFather replies with a token like `123456789:AAH...`.
+2. **Create the channel.** In Telegram: *New Channel* → name and description → *Public* → pick a link such as `t.me/ai_teknoloji_radari`.
+3. **Make the bot an admin.** Channel → *Administrators* → *Add Admin* → search for the bot's username → leave *Post Messages* on → *Save*.
+4. **Add the secrets** (Settings → Secrets and variables → Actions → *New repository secret*): `TELEGRAM_BOT_TOKEN` = the token from step 1, and `TELEGRAM_CHAT_ID` = the channel's public name with `@`, for example `@ai_teknoloji_radari`.
+5. **Test it.** Actions → *Haftalik Teknoloji ve AI Bulteni* → *Run workflow* → tick only `telegram_test` → *Run workflow*. A test message appears in the channel; you can delete it.
 
 ## Secrets
 
@@ -212,9 +236,11 @@ At startup (except in `dry_run`) the run stops with a clear error if any "Yes" s
 | `CLOUDFLARE_API_TOKEN` | For the Worker | Cloudflare API token that can edit Workers |
 | `CLOUDFLARE_ACCOUNT_ID` | For the Worker | Cloudflare account ID |
 | `EMAIL_RECEIVER` | No | Fallback single recipient when no other subscriber list is available |
-| `SIGNUP_URL` | No | Signup page link (the Worker's `/abone` page, or the Google Form). Adds a "forward to a friend / subscribe" box to the email and a subscribe link to the web archive; hidden when unset |
+| `SIGNUP_URL` | No | Signup page link (the Worker's `/abone` page, or the Google Form). Adds a "forward to a friend / subscribe" box to the email and a signup box to the web archive; hidden when unset |
 | `PREVIEW_EMAIL` | No | Where `preview` runs send the newsletter (falls back to `EMAIL_RECEIVER`) |
 | `ALERT_EMAIL` | No | Where the [failure alert](#failure-alert) goes (falls back to `PREVIEW_EMAIL`, then `EMAIL_SENDER`) |
+| `TELEGRAM_BOT_TOKEN` | No | Telegram bot token; with `TELEGRAM_CHAT_ID`, posts each issue to the [Telegram channel](#telegram-channel) |
+| `TELEGRAM_CHAT_ID` | No | The channel to post to, as `@channelname` |
 | `REDDIT_CLIENT_ID` | No | Reddit app ID; enables the OAuth path |
 | `REDDIT_CLIENT_SECRET` | No | Reddit app secret; enables the OAuth path |
 

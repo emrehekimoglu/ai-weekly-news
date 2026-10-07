@@ -50,6 +50,14 @@ def isolated_report(monkeypatch, tmp_path):
 
 
 @pytest.fixture(autouse=True)
+def isolated_post_file(monkeypatch, tmp_path):
+    """Telegram özeti (issue.json) depo köküne değil geçici klasöre yazılır."""
+    path = tmp_path / "issue.json"
+    monkeypatch.setattr(config, "POST_FILE", str(path))
+    return path
+
+
+@pytest.fixture(autouse=True)
 def no_sheets_network(monkeypatch):
     """Testler gerçek Google Sheets'e asla bağlanmaz."""
     def fail():

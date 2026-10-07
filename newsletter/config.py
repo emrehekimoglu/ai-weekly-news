@@ -60,6 +60,12 @@ PREVIEW_FILE = "newsletter.html"
 ARCHIVE_FILE = "issue.html"
 # Yeni okura onay anında gönderilen son sayı (yer tutuculu); iş akışı commit eder, Worker okur
 WELCOME_FILE = "data/latest-issue.json"
+# Aynı sayının Telegram gönderisi için kısa özeti (manşet, özet, maddeler); sadece gerçek gönderimde yazılır
+POST_FILE = "issue.json"
+
+# Opsiyonel: her gerçek sayıyı bir Telegram kanalına da gönder (newsletter/telegram.py). İkisi de yoksa adım atlanır.
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
 
 SUBSCRIBERS_FILE = "subscribers.txt"
 
