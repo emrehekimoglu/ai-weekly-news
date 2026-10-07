@@ -16,6 +16,8 @@ A weekly, Turkish-language AI and technology newsletter that writes and sends it
 | `dedup.py` | Spotting the same story from two sources (by normalised link or title) |
 | `history.py` | Remembering which stories earlier issues sent, in [`data/history.json`](data/history.json) |
 | `app.py` | The run itself: check, collect, filter, write, send |
+| `report.py` | Story counts per source and warnings, saved to `run_report.json` for the alert |
+| `alert.py` | The failure alert email (run by the workflow's last step) |
 
 To add a source, write a module in `newsletter/sources/` with a `fetch()` function that returns a list of `NewsItem`, and add it to `SOURCES` in [`newsletter/sources/__init__.py`](newsletter/sources/__init__.py).
 
@@ -43,6 +45,8 @@ Output goes through Python's `logging` module to standard output, one plain line
 | 6 | Tech media | 4 latest posts each from The Verge (AI section) and Ars Technica |
 | 7 | Turkish tech media | Up to 5 posts from the last 8 days each from Webrazzi (AI section), Egirişim and Webtekno; the general feeds keep only AI, startup and investment stories. These are the only candidates for the "Türkiye'den" section |
 
+After collecting, the run logs one line with how many stories each source returned (`Kaynak özeti: arXiv 8, Hacker News 6, …`). A source that returns nothing gets a yellow `::warning::` in the Actions log and is listed in the [alert email](#failure-alert).
+
 **Reddit** blocks unauthenticated JSON requests from data-centre IPs such as GitHub Actions runners. If `REDDIT_CLIENT_ID` and `REDDIT_CLIENT_SECRET` are set, the script uses Reddit's app-only OAuth API and keeps posts with more than 300 upvotes. Otherwise it falls back to a single combined RSS request (`r/ChatGPT+singularity+LocalLLaMA/top/.rss`), keeps up to 5 posts per subreddit, and retries once after an HTTP 429.
 
 ## Repeated stories
@@ -66,7 +70,7 @@ Safeguards in `llm.generate_digest` and `llm.parse_digest`:
 - The JSON object is taken from the answer even if the model wraps it in ```` ```json ```` fences or extra text.
 - The intro and each pick's title and summary must be non-empty text, and each number must match a collected item. Repeated numbers are dropped, an unknown category becomes `Endüstri`, and at most 12 picks are kept. The headline, takeaways and number are optional: if any is missing or malformed it is logged and that block is left out of the email, and the subject falls back to the dated default.
 - At least 5 valid picks are required.
-- Up to 3 attempts, waiting 10 s and then 20 s between them. After the third failure the script exits with status 1 and sends nothing.
+- Up to 3 attempts, waiting 10 s and then 20 s between them. If all three fail, the same 3 attempts are made with a backup model (`qwen3.8-max` by default, changed with `OPENCODE_FALLBACK_MODEL`; set it empty or equal to the main model to turn the backup off). An issue written by the backup model goes out as usual and the [alert email](#failure-alert) says so. If the backup fails too, the script exits with status 1 and sends nothing.
 
 ## Email step
 
@@ -156,6 +160,16 @@ The workflow is [`.github/workflows/newsletter.yml`](.github/workflows/newslette
 > [!WARNING]
 > A manual run with both `dry_run` and `preview` off sends the real newsletter to every active subscriber. Use `dry_run` to test the sources and `preview` to see the finished email.
 
+### Failure alert
+
+GitHub does not reliably email anyone when a scheduled run fails, so the workflow's last step, *Sorun Varsa Bana Haber Ver*, runs `python -m newsletter.alert` after every real send (never for `preview` or `dry_run`):
+
+- If any step failed (no subscribers reached, model failed, a send failed, nothing collected, a crash), it emails the owner with a link to the run log, the story count per source, and the last 40 lines of the log. When the failed run is the 03:00 UTC one, the email says the 04:37 UTC backup run will try again.
+- If the run succeeded but a source returned nothing, or the backup model wrote the issue, it sends a shorter "sent, with warnings" email.
+- Otherwise it sends nothing.
+
+The alert goes to `ALERT_EMAIL` if set, else `PREVIEW_EMAIL`, else `EMAIL_SENDER` itself, using the same Gmail login as the newsletter. The newsletter step's output is copied to `run.log` for this. If the Gmail secrets themselves are missing, no alert can be sent; the run is still red in the Actions tab.
+
 ### Deliverability
 
 The newsletter is sent through Gmail's own servers from a gmail.com address, so SPF, DKIM and DMARC already pass with Google's records; there is nothing to set up for them. What the code adds: `Date` and `Message-ID` headers, and RFC 8058 one-click unsubscribe (`List-Unsubscribe` plus `List-Unsubscribe-Post`), which Gmail and Yahoo expect from newsletters and show as an "Unsubscribe" button next to the sender. The Worker accepts that button's `POST` on the same unsubscribe link. The confirmation email and the "subscription confirmed" page ask readers to add the sender to their contacts, which is the strongest signal for keeping mail out of Spam.
@@ -189,10 +203,11 @@ At startup (except in `dry_run`) the run stops with a clear error if any "Yes" s
 | `EMAIL_RECEIVER` | No | Fallback single recipient when no other subscriber list is available |
 | `SIGNUP_URL` | No | Signup page link (the Worker's `/abone` page, or the Google Form). Adds a "forward to a friend / subscribe" box to the email and a subscribe link to the web archive; hidden when unset |
 | `PREVIEW_EMAIL` | No | Where `preview` runs send the newsletter (falls back to `EMAIL_RECEIVER`) |
+| `ALERT_EMAIL` | No | Where the [failure alert](#failure-alert) goes (falls back to `PREVIEW_EMAIL`, then `EMAIL_SENDER`) |
 | `REDDIT_CLIENT_ID` | No | Reddit app ID; enables the OAuth path |
 | `REDDIT_CLIENT_SECRET` | No | Reddit app secret; enables the OAuth path |
 
-`OPENCODE_MODEL` is optional and is not passed by the workflow today, so the default model is used there.
+`OPENCODE_MODEL` and `OPENCODE_FALLBACK_MODEL` are optional and are not passed by the workflow today, so the default models are used there.
 
 ## Running locally
 

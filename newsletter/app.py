@@ -4,7 +4,7 @@ import logging
 import sys
 from datetime import datetime, timezone
 
-from newsletter import config, history, llm, mailer, stats, subscribers
+from newsletter import config, history, llm, mailer, report, stats, subscribers
 from newsletter.dedup import remove_duplicates
 from newsletter.render import render_html
 from newsletter.sources import SOURCES, collect
@@ -31,11 +31,15 @@ def main():
             log.error("[HATA] Eksik ayarlar yüzünden çalışma durduruldu; veri toplanmadı, e-posta gönderilmedi.")
             sys.exit(1)
 
+    report.reset()
     by_source = collect(SOURCES)
+    report.set_sources({name: len(source_items) for name, source_items in by_source.items()})
     collected = [item for source_items in by_source.values() for item in source_items]
     if not collected:
-        log.error("Hiçbir kaynaktan veri toplanamadı!")
-        return
+        log.error("[HATA] Hiçbir kaynaktan veri toplanamadı! E-posta gönderilmedi.")
+        if config.DRY_RUN:
+            return
+        sys.exit(1)
 
     past_issues = history.load()
     items = history.remove_seen(remove_duplicates(collected), past_issues)

@@ -15,6 +15,8 @@ GCP_SA_KEY = os.environ.get("GCP_SA_KEY")
 SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID")
 WEB_APP_URL = os.environ.get("WEB_APP_URL", "")
 MODEL_NAME = os.environ.get("OPENCODE_MODEL", "deepseek-v4.1-flash")
+# Ana model tüm denemelerde başarısız olursa bu model denenir (aynıysa veya boşsa yedek yok)
+FALLBACK_MODEL_NAME = os.environ.get("OPENCODE_FALLBACK_MODEL", "qwen3.8-max").strip()
 # Opsiyonel: abonelik sayfası (Worker'ın /abone sayfası veya Google Forms). Boşsa "arkadaşına ilet / abone ol" bloğu gösterilmez.
 SIGNUP_URL = os.environ.get("SIGNUP_URL", "").strip()
 
@@ -50,6 +52,11 @@ PREVIEW_FILE = "newsletter.html"
 ARCHIVE_FILE = "issue.html"
 
 SUBSCRIBERS_FILE = "subscribers.txt"
+
+# Kaynak sayıları ve uyarılar; iş akışının son adımı (python -m newsletter.alert) bunu okur
+REPORT_FILE = "run_report.json"
+# Uyarı e-postasının alıcısı: ALERT_EMAIL, yoksa PREVIEW_EMAIL, yoksa gönderen adres (kendine)
+ALERT_EMAIL = os.environ.get("ALERT_EMAIL", "").strip()
 
 # Gönderilen sayıların kaydı; iş akışı bu dosyayı depoya commit eder
 HISTORY_FILE = "data/history.json"
