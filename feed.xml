@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+<channel>
+  <title>AI &amp; Teknoloji Radarı</title>
+  <link>https://emrehekimoglu.github.io/ai-weekly-news/</link>
+  <atom:link href="https://emrehekimoglu.github.io/ai-weekly-news/feed.xml" rel="self" type="application/rss+xml"/>
+  <description>Yapay zekâ ve teknoloji dünyasında haftanın öne çıkanları, her Pazartesi Türkçe.</description>
+  <language>tr</language>
+  <lastBuildDate>Mon, 05 Oct 2026 06:00:00 +0000</lastBuildDate>
+  <item>
+    <title>OpenAI Sarsılıyor: İstifa, Reklam, Güven Krizi (5 Ekim 2026)</title>
+    <link>https://emrehekimoglu.github.io/ai-weekly-news/issues/2026-10-05.html</link>
+    <guid isPermaLink="true">https://emrehekimoglu.github.io/ai-weekly-news/issues/2026-10-05.html</guid>
+    <pubDate>Mon, 05 Oct 2026 06:00:00 +0000</pubDate>
+    <description>OpenAI'ın güvenlik ekibinden David Robinson istifa etti, şirket kültürünü 'bozuk' olarak niteledi.</description>
+  </item>
+  <item>
+    <title>Frontier yarışı alevlendi: Sol ve Argon sahada (30 Eylül 2026)</title>
+    <link>https://emrehekimoglu.github.io/ai-weekly-news/issues/2026-09-30.html</link>
+    <guid isPermaLink="true">https://emrehekimoglu.github.io/ai-weekly-news/issues/2026-09-30.html</guid>
+    <pubDate>Wed, 30 Sep 2026 06:00:00 +0000</pubDate>
+    <description>OpenAI, Astra'nın beşte biri fiyata GPT-6.1 Sol'u duyurdu; aynı hafta Gemini 4 Argon geldi.</description>
+  </item>
+</channel>
+</rss>
