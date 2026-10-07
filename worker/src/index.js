@@ -6,6 +6,11 @@
  *   ?action=unsubscribe&email=…&token=…  abonelikten çıkma (C sütunu → IPTAL)
  *   ?action=vote&issue=…&story=…&v=…&voter=…  👍/👎 oyu ("Geri Bildirim" sayfası)
  *
+ * Oy ve iptal bağlantıları GET ile hiçbir şey değiştirmez: kendini POST ile gönderen bir sayfa döner.
+ * E-postadaki bağlantıları tarayan güvenlik/spam botları (mail-tester, Outlook Safe Links…) JavaScript
+ * çalıştırmadığı için oy veremez, kimseyi abonelikten çıkaramaz; okur ise farkı görmez.
+ * Gmail'in tek tıkla iptal düğmesi (RFC 8058) zaten doğrudan POST atar.
+ *
  * Ayrıca bültenin kendi abonelik sayfası: GET /abone formu gösterir, POST /abone tabloya BEKLIYOR satırı
  * ekleyip Gmail üzerinden onay e-postası gönderir (çift onay; Google Formu'na gerek kalmaz).
  *
@@ -29,6 +34,10 @@ export default {
     const isSignup = url.pathname === "/abone" || url.pathname === "/abone/";
     if (!isSignup && url.pathname !== "/") return page(404, "🤔", "Sayfa bulunamadı", "");
     if (request.method === "GET" && (isSignup || !p.action)) return signupPage(env);
+    if (!isSignup && request.method !== "POST" && (p.action === "vote" || p.action === "unsubscribe")) {
+      const ok = p.action === "vote" ? cleanVote(p) : p.email && p.token;
+      return ok ? selfPost() : page(400, "🤔", "Bağlantı geçersiz", "Bu bağlantı tanınmadı.");
+    }
     try {
       const sheets = new Sheets(env);
       if (isSignup && request.method === "POST") return await signup(sheets, env, request, url);
@@ -273,6 +282,13 @@ function html(status, title, body, extraStyle = "", head = "") {
 <style>${STYLE}${extraStyle}</style></head><body><div class="brand">AI &amp; TEKNOLOJİ RADARI</div>
 ${body}</body></html>`, { status, headers: { "content-type": "text/html; charset=utf-8",
                                              "cache-control": "no-store" } });
+}
+
+/** Aynı adrese kendini POST eden sayfa; JavaScript kapalıysa düğmeye basılır. */
+function selfPost() {
+  return html(200, "AI &amp; Teknoloji Radarı", `<div class="card"><form method="post" id="f">
+<p>Kaydediliyor…</p><noscript><p><button type="submit">Devam et</button></p></noscript></form></div>
+<script>document.getElementById("f").submit()</script>`, "", '<meta name="robots" content="noindex">');
 }
 
 function page(status, icon, title, text, color = "#10141c") {

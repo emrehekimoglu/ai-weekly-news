@@ -18,9 +18,11 @@ _env = Environment(
 
 def _links():
     """Abone olmayanlara da gösterilebilen ortak bağlantılar: abonelik formu ve bu sayının arşiv sayfası.
-    Arşiv sayfası, gönderimle aynı gün (UTC) archive.py tarafından bu tarihle yazılır."""
+    Arşiv sayfası, gönderimle aynı gün (UTC) archive.py tarafından bu tarihle yazılır; önizleme
+    arşive yazılmadığından önizlemede bu bağlantı çıkmaz (yoksa 404 olur)."""
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    return {"signup_url": config.SIGNUP_URL or None, "web_url": config.issue_url(today)}
+    web_url = None if config.PREVIEW else config.issue_url(today)
+    return {"signup_url": config.SIGNUP_URL or None, "web_url": web_url}
 
 
 # feedback_url(story, vote) -> 👍/👎 bağlantısı; verilmezse (arşiv, önizleme dosyası) oy bağlantıları çıkmaz.
