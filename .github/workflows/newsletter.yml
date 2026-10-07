@@ -97,10 +97,11 @@ jobs:
         # Sadece gerçek gönderimlerde; önizleme ve dry_run geçmişi değiştirmez
         if: always() && !inputs.preview && !inputs.fallback_test && !inputs.dry_run
         run: |
-          if [ -n "$(git status --porcelain data/history.json)" ]; then
+          # latest-issue.json: yeni okura onayda gönderilen son sayı (Worker GitHub'dan okur)
+          if [ -n "$(git status --porcelain data/history.json data/latest-issue.json)" ]; then
             git config user.name "github-actions[bot]"
             git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
-            git add data/history.json
+            git add data/history.json $(ls data/latest-issue.json 2>/dev/null)
             git commit -m "Bülten geçmişini güncelle ($(date -u +%F))"
             git push
           fi

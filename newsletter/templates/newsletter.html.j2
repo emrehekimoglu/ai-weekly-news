@@ -53,6 +53,15 @@
     <div class="rule-strong" style="border-top: 3px solid #10141c; margin-top: 12px; font-size: 0; line-height: 0;">&nbsp;</div>
   </td></tr>
 
+  {% if welcome %}
+  <tr><td class="px" style="padding: 22px 40px 0 40px;">
+    <table role="presentation" class="tldr" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f3f5f9" style="background-color: #f3f5f9; border-radius: 8px;"><tr><td style="padding: 18px 22px;">
+      <div class="ink" style="font: 700 17px/24px {{ serif }}; color: #10141c;">Hoş geldiniz! 👋</div>
+      <div class="soft" style="font: 14px/22px {{ sans }}; color: #454d5c; margin-top: 4px;">Aboneliğiniz onaylandı. Pazartesiyi beklemeyin diye son sayımızı hemen gönderiyoruz. Yeni sayılar her Pazartesi sabahı gelen kutunuzda olacak.</div>
+    </td></tr></table>
+  </td></tr>
+  {% endif %}
+
   <tr><td class="px ink headline" style="padding: 26px 40px 10px 40px; font: 700 38px/44px {{ serif }}; color: #10141c; letter-spacing: -0.5px;">{{ digest.headline or "Haftanın Özeti" }}</td></tr>
   <tr><td class="px soft" style="padding: 0 40px 24px 40px; font: italic 17px/27px {{ serif }}; color: #454d5c;">{{ digest.intro }}</td></tr>
 
