@@ -21,6 +21,10 @@ on:
         description: 'Önizlemeyi bu adrese gönder (boşsa bana; ör. mail-tester.com adresi)'
         type: string
         default: ''
+      alert_test:
+        description: 'Sadece uyarı e-postasını dene (bülten üretilmez, kimseye bülten gitmez)'
+        type: boolean
+        default: false
 
 # Aynı anda iki çalışma gh-pages dalına yazmasın
 concurrency:
@@ -52,6 +56,7 @@ jobs:
           pip install -r requirements.txt
 
       - name: Bülteni Oluştur ve Mail Gönder
+        if: ${{ !inputs.alert_test }}
         env:
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
           EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
@@ -130,4 +135,10 @@ jobs:
           PREVIEW_EMAIL: ${{ secrets.PREVIEW_EMAIL }}
           JOB_STATUS: ${{ job.status }}
           EVENT_SCHEDULE: ${{ github.event.schedule }}
-        run: python -m newsletter.alert --status "$JOB_STATUS" --log run.log
+          ALERT_TEST: ${{ inputs.alert_test }}
+        run: |
+          if [ "$ALERT_TEST" = "true" ]; then
+            python -m newsletter.alert --test
+          else
+            python -m newsletter.alert --status "$JOB_STATUS" --log run.log
+          fi
