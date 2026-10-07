@@ -1,0 +1,12 @@
+#!/bin/sh
+# Removes AI attribution lines from the commit message before the commit is made:
+# "Co-Authored-By:" trailers naming an AI tool, "Claude-Session:" lines and
+# "Generated with Claude Code" footers. Installed by scripts/install-hooks.sh.
+msg="$1"
+tmp="$msg.tmp.$$"
+
+grep -viE '^[[:space:]]*(co-authored-by:.*(claude|anthropic|copilot|openai|chatgpt|gemini|cursor|codex|devin|aider)|claude-session:|[^[:alnum:]]*generated (with|by) \[?claude|https://claude\.ai/code/session_)' "$msg" \
+  | awk '{ lines[NR] = $0 } END { n = NR; while (n > 0 && lines[n] ~ /^[[:space:]]*$/) n--; for (i = 1; i <= n; i++) print lines[i] }' \
+  > "$tmp"
+cat "$tmp" > "$msg"
+rm -f "$tmp"
