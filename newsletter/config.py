@@ -46,6 +46,11 @@ PREVIEW = os.environ.get("PREVIEW", "").lower() == "true"
 PREVIEW_EMAIL = os.environ.get("PREVIEW_TO", "").strip() or os.environ.get("PREVIEW_EMAIL")
 # Zamanlanmış (cron) çalışma mı? Yedek zamanlama, bu hafta otomatik gönderilmiş sayıyı tekrar göndermez.
 SCHEDULED = os.environ.get("GITHUB_EVENT_NAME") == "schedule"
+# İş akışının "fallback_test" girdisi: ana model bilerek bozulur ve önizlemeyi yedek model yazar (sadece sahibine gider)
+FALLBACK_TEST = os.environ.get("FALLBACK_TEST", "").lower() == "true"
+if FALLBACK_TEST:
+    MODEL_NAME = "olmayan-model-yedek-testi"
+    PREVIEW = True
 PREVIEW_FILE = "newsletter.html"
 # Abonelere gönderilen bülten (kişisel iptal bağlantısı olmadan); iş akışı bunu
 # GitHub Pages arşivine ekler (archive.py). Önizleme ve DRY_RUN bu dosyayı yazmaz.
