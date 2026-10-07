@@ -51,12 +51,24 @@ test("confirm and unsubscribe update column C of the matching row", async () => 
   fakeGoogle(tabs);
   let res = await get("action=confirm&email=A%40x.com&token=tok-a");
   assert.equal(res.status, 200);
-  assert.match(await res.text(), /Aboneliğiniz Onaylandı/);
+  const body = await res.text();
+  assert.match(body, /Aboneliğiniz Onaylandı/);
+  assert.match(body, /bulten@gmail\.com adresini kişilerinize ekleyin/);
   assert.equal(tabs[""][1][2], "AKTIF");
 
   res = await get("action=unsubscribe&email=b%40x.com&token=tok-b");
   assert.match(await res.text(), /Abonelikten Ayrıldınız/);
   assert.equal(tabs[""][2][2], "IPTAL");
+});
+
+test("one-click unsubscribe (RFC 8058 POST from Gmail's button) works on the same link", async () => {
+  const tabs = { "": [["Zaman", "E-posta", "Durum", "Token"], ["t", "b@x.com", "AKTIF", "tok-b"]] };
+  fakeGoogle(tabs);
+  const res = await worker.fetch(new Request("https://ai-radar.example.workers.dev/?action=unsubscribe&email=b%40x.com&token=tok-b",
+    { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: "List-Unsubscribe=One-Click" }), env);
+  assert.equal(res.status, 200);
+  assert.equal(tabs[""][1][2], "IPTAL");
 });
 
 test("wrong token changes nothing", async () => {

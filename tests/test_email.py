@@ -95,6 +95,7 @@ def test_message_has_plain_html_and_list_unsubscribe():
     msg = mailer.build_message(make_digest(), {"email": "a@example.com", "token": "t"}, "Konu")
     parsed = message_from_string(msg.as_string())
     assert parsed["List-Unsubscribe"] == f"<{UNSUB}>"
+    assert parsed["List-Unsubscribe-Post"] == "List-Unsubscribe=One-Click"
     parts = parsed.get_payload()
     assert [p.get_content_type() for p in parts] == ["text/plain", "text/html"]
     plain = parts[0].get_payload(decode=True).decode("utf-8")
@@ -107,6 +108,15 @@ def test_message_has_plain_html_and_list_unsubscribe():
 def test_no_list_unsubscribe_without_token():
     msg = mailer.build_message(make_digest(), {"email": "a@example.com"}, "Konu")
     assert msg["List-Unsubscribe"] is None
+    assert msg["List-Unsubscribe-Post"] is None
+
+
+def test_message_has_date_and_message_id_from_sender_domain():
+    msg = mailer.build_message(make_digest(), {"email": "a@example.com", "token": "t"}, "Konu")
+    assert msg["Date"].endswith("GMT")
+    assert msg["Message-ID"].startswith("<") and msg["Message-ID"].endswith("@example.com>")
+    other = mailer.build_message(make_digest(), {"email": "b@example.com", "token": "t"}, "Konu")
+    assert other["Message-ID"] != msg["Message-ID"]
 
 
 def test_feedback_links_carry_no_email_or_token():
