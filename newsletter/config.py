@@ -40,7 +40,8 @@ REDDIT_CLIENT_SECRET = os.environ.get("REDDIT_CLIENT_SECRET")
 DRY_RUN = os.environ.get("DRY_RUN", "").lower() == "true"
 # "true" ise bülten tam üretilir ama sadece sahibine (PREVIEW_EMAIL, yoksa EMAIL_RECEIVER) gönderilir
 PREVIEW = os.environ.get("PREVIEW", "").lower() == "true"
-PREVIEW_EMAIL = os.environ.get("PREVIEW_EMAIL")
+# İş akışının "preview_to" girdisi (ör. mail-tester.com adresi) bu çalışma için PREVIEW_EMAIL'in yerine geçer
+PREVIEW_EMAIL = os.environ.get("PREVIEW_TO", "").strip() or os.environ.get("PREVIEW_EMAIL")
 # Zamanlanmış (cron) çalışma mı? Yedek zamanlama, bu hafta otomatik gönderilmiş sayıyı tekrar göndermez.
 SCHEDULED = os.environ.get("GITHUB_EVENT_NAME") == "schedule"
 PREVIEW_FILE = "newsletter.html"

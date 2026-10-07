@@ -17,6 +17,10 @@ on:
         description: 'Önizleme: bülteni üret, sadece bana gönder (abonelere gitmez)'
         type: boolean
         default: false
+      preview_to:
+        description: 'Önizlemeyi bu adrese gönder (boşsa bana; ör. mail-tester.com adresi)'
+        type: string
+        default: ''
 
 # Aynı anda iki çalışma gh-pages dalına yazmasın
 concurrency:
@@ -63,6 +67,7 @@ jobs:
           PREVIEW: ${{ inputs.preview }}
           GITHUB_EVENT_NAME: ${{ github.event_name }}
           PREVIEW_EMAIL: ${{ secrets.PREVIEW_EMAIL }}
+          PREVIEW_TO: ${{ inputs.preview_to }}
         run: python main.py
 
       - name: Önizleme HTML'ini Yükle

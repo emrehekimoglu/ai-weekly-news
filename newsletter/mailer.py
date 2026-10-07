@@ -7,7 +7,7 @@ import time
 from datetime import datetime, timezone
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from email.utils import formataddr
+from email.utils import formataddr, formatdate, make_msgid
 from urllib.parse import urlencode
 
 from newsletter import config
@@ -85,8 +85,13 @@ def build_message(digest, sub, subject, issue=None):
     msg["Subject"] = subject
     msg["From"] = formataddr((SENDER_NAME, config.EMAIL_SENDER))
     msg["To"] = email
+    # Gmail eksikse kendisi ekler, ama spam filtreleri (ör. SpamAssassin MISSING_DATE) bu başlıkları gönderende arar
+    msg["Date"] = formatdate(usegmt=True)
+    msg["Message-ID"] = make_msgid(domain=config.EMAIL_SENDER.rpartition("@")[2] or None)
     if unsub_url:
         msg["List-Unsubscribe"] = f"<{unsub_url}>"
+        # RFC 8058 tek tıkla iptal: Gmail/Yahoo "Abonelikten çık" düğmesi bu adrese POST atar (Worker kabul eder)
+        msg["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
 
     # Düz metin önce, HTML sonra: istemciler desteklediği son parçayı gösterir
     msg.attach(MIMEText(render_text(digest, unsub_url, feedback_url), "plain", "utf-8"))

@@ -33,7 +33,7 @@ export default {
       const sheets = new Sheets(env);
       if (isSignup && request.method === "POST") return await signup(sheets, env, request, url);
       if (p.action === "vote") return await vote(sheets, p);
-      if (p.action === "confirm" || p.action === "unsubscribe") return await subscription(sheets, p);
+      if (p.action === "confirm" || p.action === "unsubscribe") return await subscription(sheets, p, env);
       return page(400, "🤔", "Geçersiz istek", "Bu bağlantı tanınmadı.");
     } catch (err) {
       console.error(err);
@@ -43,7 +43,7 @@ export default {
   },
 };
 
-async function subscription(sheets, p) {
+async function subscription(sheets, p, env) {
   const email = (p.email || "").trim().toLowerCase();
   const token = (p.token || "").trim();
   if (!email || !token) return page(400, "🤔", "Geçersiz veya eksik istek", "Bağlantı eksik görünüyor.");
@@ -55,8 +55,11 @@ async function subscription(sheets, p) {
     if (String(row[1] || "").trim().toLowerCase() === email && String(row[3] || "").trim() === token) {
       if (p.action === "confirm") {
         await sheets.put(`C${i + 1}`, [["AKTIF"]]);
+        // Kişilerdeki bir adresten gelen e-posta Gmail'de spam'e ve çoğunlukla Promosyonlar'a düşmez
+        const contact = env.EMAIL_SENDER ? ` Bültenin spam klasörüne düşmemesi için ${env.EMAIL_SENDER} `
+          + "adresini kişilerinize ekleyin." : "";
         return page(200, "✓", "Aboneliğiniz Onaylandı!",
-                    "Her Pazartesi sabahı güncel AI gelişmelerini gelen kutunuzda bulacaksınız.", "#16a34a");
+                    `Her Pazartesi sabahı güncel AI gelişmelerini gelen kutunuzda bulacaksınız.${contact}`, "#16a34a");
       }
       await sheets.put(`C${i + 1}`, [["IPTAL"]]);
       return page(200, "👋", "Abonelikten Ayrıldınız",
@@ -122,7 +125,8 @@ export function confirmEmail(link) {
     subject: "Aboneliğinizi onaylayın: AI & Teknoloji Radarı",
     text: "Merhaba,\n\nAI & Teknoloji Radarı'na abone olmak için bu bağlantıyı açın:\n"
       + `${link}\n\nBu isteği siz yapmadıysanız bu e-postayı yok sayabilirsiniz; onaylamadığınız sürece `
-      + "size bülten gönderilmez.\n",
+      + "size bülten gönderilmez.\n\nBültenin spam klasörüne düşmemesi için bu e-postanın geldiği adresi "
+      + "kişilerinize ekleyin.\n",
     html: `<!DOCTYPE html><html lang="tr"><body style="margin:0;padding:32px 16px;background:#eceff4;
 font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#10141c">
 <div style="max-width:480px;margin:0 auto;background:#fff;border:1px solid #dfe3ea;padding:32px 28px">
@@ -136,6 +140,8 @@ font-weight:600;text-decoration:none;padding:12px 22px">Aboneliği Onayla</a></p
 yapıştırın:<br><a href="${href}" style="color:#2563eb;word-break:break-all">${href}</a></p>
 <p style="color:#6b7280;font-size:13px;line-height:1.5;margin:16px 0 0">Bu isteği siz yapmadıysanız bu
 e-postayı yok sayabilirsiniz; onaylamadığınız sürece size bülten gönderilmez.</p>
+<p style="color:#6b7280;font-size:13px;line-height:1.5;margin:16px 0 0">İpucu: Bültenin spam klasörüne
+düşmemesi için bu e-postanın geldiği adresi kişilerinize ekleyin.</p>
 </div></body></html>`,
   };
 }
