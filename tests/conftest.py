@@ -2,7 +2,7 @@
 
 import pytest
 
-from newsletter import app, config, stats
+from newsletter import app, config, report, stats
 from newsletter.models import Digest, DigestEntry, NewsItem, Stat
 from newsletter.sources import Source
 
@@ -29,6 +29,15 @@ def isolated_history(monkeypatch, tmp_path):
     """Testler depodaki data/history.json dosyasına asla dokunmaz."""
     path = tmp_path / "history.json"
     monkeypatch.setattr(config, "HISTORY_FILE", str(path))
+    return path
+
+
+@pytest.fixture(autouse=True)
+def isolated_report(monkeypatch, tmp_path):
+    """Çalışma raporu depo köküne değil geçici klasöre yazılır."""
+    path = tmp_path / "run_report.json"
+    monkeypatch.setattr(config, "REPORT_FILE", str(path))
+    report.reset()
     return path
 
 
