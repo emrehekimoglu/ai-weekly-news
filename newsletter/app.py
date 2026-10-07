@@ -1,5 +1,6 @@
 """Ana akış: ayar kontrolü → veri toplama → tekrarları eleme → LLM ile seçki → şablondan e-posta → gönderim."""
 
+import json
 import logging
 import sys
 from datetime import datetime, timezone
@@ -15,6 +16,19 @@ log = logging.getLogger(__name__)
 def setup_logging():
     # Sade biçim: "::error::" satırları GitHub Actions'ta hata olarak işaretlenir
     logging.basicConfig(level=logging.INFO, format="%(message)s", stream=sys.stdout)
+
+
+def write_post_summary(digest, date):
+    """Telegram gönderisi için sayının kısa özeti (newsletter/telegram.py okur)."""
+    summary = {
+        "date": date,
+        "headline": digest.headline,
+        "intro": digest.intro,
+        "tldr": digest.tldr,
+        "titles": [e.title for e in digest.entries],
+    }
+    with open(config.POST_FILE, "w", encoding="utf-8") as f:
+        json.dump(summary, f, ensure_ascii=False, indent=2)
 
 
 def main():
@@ -82,6 +96,7 @@ def main():
             # Web arşivi için ortak (kişisel iptal bağlantısı olmayan) sürüm
             with open(config.ARCHIVE_FILE, "w", encoding="utf-8") as f:
                 f.write(render_html(digest))
+            write_post_summary(digest, today)
         # Sadece abone listesi Sheets'ten okunduysa; önizleme ve DRY_RUN buraya hiç gelmez
         if failed is not None and sheets_error is None:
             stats.record(today, sent=len(recipients) - len(failed), failed=len(failed))

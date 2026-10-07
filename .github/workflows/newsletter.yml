@@ -29,6 +29,10 @@ on:
         description: 'Sadece uyarı e-postasını dene (bülten üretilmez, kimseye bülten gitmez)'
         type: boolean
         default: false
+      telegram_test:
+        description: 'Sadece Telegram kanalına deneme mesajı at (bülten üretilmez, kimseye e-posta gitmez)'
+        type: boolean
+        default: false
 
 # Aynı anda iki çalışma gh-pages dalına yazmasın
 concurrency:
@@ -60,7 +64,7 @@ jobs:
           pip install -r requirements.txt
 
       - name: Bülteni Oluştur ve Mail Gönder
-        if: ${{ !inputs.alert_test }}
+        if: ${{ !inputs.alert_test && !inputs.telegram_test }}
         env:
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
           EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
@@ -93,21 +97,10 @@ jobs:
           path: newsletter.html
           if-no-files-found: ignore
 
-      - name: Sayı Geçmişini Kaydet
-        # Sadece gerçek gönderimlerde; önizleme ve dry_run geçmişi değiştirmez
-        if: always() && !inputs.preview && !inputs.fallback_test && !inputs.dry_run
-        run: |
-          if [ -n "$(git status --porcelain data/history.json)" ]; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
-            git add data/history.json
-            git commit -m "Bülten geçmişini güncelle ($(date -u +%F))"
-            git push
-          fi
-
       # Sadece abonelere gerçekten gönderilen sayılar arşive girer:
       # newsletter/app.py issue.html dosyasını önizleme ve dry_run'da yazmaz.
       - name: Web Arşivine Ekle (GitHub Pages)
+        id: archive
         if: always() && !inputs.dry_run && !inputs.preview && !inputs.fallback_test && hashFiles('issue.html') != ''
         env:
           SIGNUP_URL: ${{ secrets.SIGNUP_URL }}
@@ -129,10 +122,42 @@ jobs:
               commit -m "Arşiv: $(date -u +%Y-%m-%d) sayısı"
           git push origin gh-pages
 
+      # Abonelere giden sayının kısa özeti ve arşiv bağlantısı Telegram kanalına gider. Secret'lar yoksa
+      # adım bir şey yapmadan geçer; Telegram hatası bülteni kırmızı yapmaz, uyarı e-postasına girer.
+      # Arşiv sayfası yayınlanamadıysa gönderilmez (bağlantı boşa çıkardı).
+      - name: Telegram Kanalına Gönder
+        if: always() && steps.archive.outcome == 'success' && hashFiles('issue.json') != ''
+        continue-on-error: true
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          SIGNUP_URL: ${{ secrets.SIGNUP_URL }}
+        run: python -m newsletter.telegram
+
+      - name: Telegram Denemesi
+        if: ${{ inputs.telegram_test }}
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python -m newsletter.telegram --test
+
+      - name: Sayı Geçmişini Kaydet
+        # Sadece gerçek gönderimlerde; önizleme ve dry_run geçmişi değiştirmez.
+        # Telegram adımından sonra çalışır ki "kanala gönderildi" işareti de kaydedilsin.
+        if: always() && !inputs.preview && !inputs.fallback_test && !inputs.dry_run && !inputs.telegram_test
+        run: |
+          if [ -n "$(git status --porcelain data/history.json)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+            git add data/history.json
+            git commit -m "Bülten geçmişini güncelle ($(date -u +%F))"
+            git push
+          fi
+
       # GitHub zamanlanmış çalışmaların hatasını her zaman bildirmiyor. Gerçek gönderimde bir adım
       # başarısız olursa veya bir kaynak boş dönerse (ya da yedek model kullanılırsa) sahibine e-posta gider.
       - name: Sorun Varsa Bana Haber Ver
-        if: always() && !inputs.preview && !inputs.fallback_test && !inputs.dry_run
+        if: always() && !inputs.preview && !inputs.fallback_test && !inputs.dry_run && !inputs.telegram_test
         env:
           EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
           EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}

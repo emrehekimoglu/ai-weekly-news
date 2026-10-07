@@ -83,17 +83,19 @@ def run(set_config, fake_sources, monkeypatch, tmp_path):
     return tmp_path / "issue.html"
 
 
-def test_real_send_saves_shared_issue_for_archive(run):
+def test_real_send_saves_shared_issue_for_archive(run, isolated_post_file):
     app.main()
+    assert isolated_post_file.exists()  # Telegram gönderisi için özet
     saved = run.read_text(encoding="utf-8")
     assert saved == render_html(make_digest())
     assert "token" not in saved and "a@example.com" not in saved
 
 
-def test_preview_does_not_save_issue_for_archive(set_config, run):
+def test_preview_does_not_save_issue_for_archive(set_config, run, isolated_post_file):
     set_config(PREVIEW=True)
     app.main()
     assert not run.exists()
+    assert not isolated_post_file.exists()
 
 
 def test_dry_run_does_not_save_issue_for_archive(set_config, run):
