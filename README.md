@@ -40,7 +40,7 @@ Output goes through Python's `logging` module to standard output, one plain line
 | 1 | arXiv | 8 newest papers in `cs.AI` or `cs.LG` (Atom API) |
 | 2 | Hacker News | Up to 6 stories from the last 7 days matching AI, LLM, Grok, Claude or OpenAI with more than 50 points (Algolia API) |
 | 3 | GitHub | Up to 6 most-starred Python repos created in the last 7 days with the `ai`, `llm` or `machine-learning` topic (search API, unauthenticated) |
-| 4 | Company blogs | 3 latest posts each from OpenAI, Google DeepMind, Anthropic (via an RSSHub mirror) and Hugging Face |
+| 4 | Company blogs | Up to 3 posts from the last 8 days each from OpenAI, Google DeepMind, Anthropic, Meta (Newsroom AI tag), Microsoft (Official Microsoft Blog), NVIDIA (generative AI blog), Mistral AI and Hugging Face. Anthropic has no RSS feed, so its official news page is read, with an RSSHub mirror as a fallback |
 | 5 | Reddit | Top posts of the week from r/ChatGPT, r/singularity and r/LocalLLaMA |
 | 6 | Tech media | 4 latest posts each from The Verge (AI section) and Ars Technica |
 | 7 | Turkish tech media | Up to 5 posts from the last 8 days each from Webrazzi (AI section), Egirişim and Webtekno; the general feeds keep only AI, startup and investment stories. These are the only candidates for the "Türkiye'den" section |
