@@ -216,3 +216,31 @@ def test_test_flag_sends_a_marked_sample(smtp):
     msg = email.message_from_string(smtp[0][2])
     assert "[DENEME]" in str(email.header.make_header(email.header.decode_header(msg["Subject"])))
     assert "gerçek bir sorun yok" in msg.get_payload(decode=True).decode("utf-8")
+
+
+def test_fallback_test_breaks_main_model_and_forces_preview(monkeypatch):
+    import importlib
+    monkeypatch.setenv("FALLBACK_TEST", "true")
+    try:
+        importlib.reload(config)
+        assert config.PREVIEW is True
+        assert config.MODEL_NAME == "olmayan-model-yedek-testi"
+        assert config.FALLBACK_MODEL_NAME and config.FALLBACK_MODEL_NAME != config.MODEL_NAME
+    finally:
+        monkeypatch.delenv("FALLBACK_TEST")
+        importlib.reload(config)
+    assert not config.FALLBACK_TEST
+
+
+def test_fallback_test_preview_subject_is_marked(monkeypatch, set_config, fake_sources):
+    from newsletter import mailer, subscribers
+    from tests.conftest import make_digest
+    fake_sources([make_item()])
+    set_config(DRY_RUN=False, PREVIEW=True, FALLBACK_TEST=True, SCHEDULED=False, PREVIEW_FILE="/dev/null")
+    monkeypatch.setattr(config, "check_config", lambda: [])
+    monkeypatch.setattr(llm, "generate_digest", lambda items, previous=(): make_digest())
+    monkeypatch.setattr(subscribers, "get_preview_recipients", lambda: [{"email": "ben@example.com"}])
+    subjects = []
+    monkeypatch.setattr(mailer, "send_all", lambda digest, recipients, subject=None: subjects.append(subject) or [])
+    app.main()
+    assert subjects[0].startswith("[YEDEK MODEL TESTİ] [ÖNİZLEME] ")
