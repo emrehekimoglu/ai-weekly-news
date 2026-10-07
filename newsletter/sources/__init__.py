@@ -24,7 +24,7 @@ SOURCES = [
     Source("arXiv", "arXiv makaleleri", arxiv.fetch),
     Source("Hacker News", "Hacker News AI trendleri", hackernews.fetch),
     Source("GitHub", "GitHub açık kaynak AI projeleri", github.fetch),
-    Source("Şirket blogları", "Şirket blogları (OpenAI, DeepMind, Anthropic, Hugging Face)", blogs.fetch),
+    Source("Şirket blogları", "Şirket blogları (OpenAI, DeepMind, Anthropic, Meta, Microsoft, NVIDIA, Mistral, Hugging Face)", blogs.fetch),
     Source("Reddit", "Reddit viral AI olayları ve tartışmaları", reddit.fetch),
     Source("Teknoloji basını", "Bağımsız teknoloji basını (The Verge, Ars Technica)", media.fetch),
     Source("Türkiye", "Türk teknoloji basını (Webrazzi, Egirişim, Webtekno)", turkey.fetch),
