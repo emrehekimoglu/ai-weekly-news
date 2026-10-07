@@ -144,6 +144,107 @@
           "source": "Egirişim"
         }
       ]
+    },
+    {
+      "date": "2026-10-07",
+      "entries": [
+        {
+          "title": "Mistral Large 4",
+          "link": "https://mistral.ai/news/mistral-large-4/",
+          "source": "Mistral AI",
+          "category": "Yeni Model"
+        },
+        {
+          "title": "EmbeddingGemma 2",
+          "link": "https://deepmind.google/blog/embeddinggemma-2-an-open-lightweight-multimodal-embedding-model/",
+          "source": "Google DeepMind",
+          "category": "Yeni Model"
+        },
+        {
+          "title": "Falcon-Emirati",
+          "link": "https://huggingface.co/blog/tiiuae/falcon-emirati",
+          "source": "Hugging Face",
+          "category": "Yeni Model"
+        },
+        {
+          "title": "OpenAI'ın Matematik Atılımı",
+          "link": "https://www.theverge.com/ai-artificial-intelligence/1005004/openai-math-release-github",
+          "source": "The Verge AI",
+          "category": "Araştırma"
+        },
+        {
+          "title": "GPT-6'da Looped Transformer İddiası",
+          "link": "https://www.reddit.com/r/LocalLLaMA/comments/1wz00vv/microsoft_confirms_openai_has_been_using_looped/",
+          "source": "Reddit r/LocalLLaMA",
+          "category": "Araştırma"
+        },
+        {
+          "title": "Sahte TLS Sertifikaları",
+          "link": "https://arstechnica.com/security/2026/10/hackers-obtain-counterfeit-tls-certificates-for-google-and-other-large-services/",
+          "source": "Ars Technica",
+          "category": "Güvenlik & Olay"
+        },
+        {
+          "title": "OpenAI Ajanları Wikipedia'yı Zorladı",
+          "link": "https://arstechnica.com/security/2026/10/openai-agents-tried-to-hack-wikipedia-tools-and-flooded-it-with-traffic/",
+          "source": "Ars Technica",
+          "category": "Güvenlik & Olay"
+        },
+        {
+          "title": "MCP'de Ajanlar Arası Açık",
+          "link": "https://arstechnica.com/security/2026/10/vulnerability-in-agents-from-google-and-others-exposes-structural-flaw-in-mcp/",
+          "source": "Ars Technica",
+          "category": "Güvenlik & Olay"
+        },
+        {
+          "title": "ChatGPT for Teens'e 'Kabul Edilemez Risk'",
+          "link": "https://www.theverge.com/ai-artificial-intelligence/1006355/openai-chatgpt-for-teens-common-sense-media",
+          "source": "The Verge AI",
+          "category": "Güvenlik & Olay"
+        },
+        {
+          "title": "Anthropic Siber Doğrulama Programı",
+          "link": "https://www.anthropic.com/news/cyber-verification-program",
+          "source": "Anthropic",
+          "category": "Güvenlik & Olay"
+        },
+        {
+          "title": "PewDiePie OpenAI'dan İki Kez Banlandı",
+          "link": "https://www.reddit.com/r/LocalLLaMA/comments/1wymgu6/pewdiepie_getting_banned_twice_by_openai_while/",
+          "source": "Reddit r/LocalLLaMA",
+          "category": "Güvenlik & Olay"
+        },
+        {
+          "title": "BMW'de Yapay Zekâ Yönetim Kesintisi",
+          "link": "https://www.webtekno.com/bmw-yapay-zeka-yonetici-yuzde-20-gidecek-h226516.html",
+          "source": "Webtekno",
+          "category": "Endüstri"
+        },
+        {
+          "title": "Softtech ve İşNet'ten Zoka Suite",
+          "link": "https://egirisim.com/2026/10/07/softtech-ve-isnetten-oltalama-saldirilarina-karsi-yerli-cozum-zoka-suite/",
+          "source": "Egirişim",
+          "category": "Türkiye"
+        },
+        {
+          "title": "Mobge, 10 Milyon Dolar Değerleme Aldı",
+          "link": "https://egirisim.com/2026/10/06/izmir-merkezli-mobil-oyun-studyosu-mobge-10-milyon-dolar-degerleme-uzerinden-yatirim-aldi/",
+          "source": "Egirişim",
+          "category": "Türkiye"
+        },
+        {
+          "title": "22 Tarım Girişimcisi Otonom Çiftlik Kuruyor",
+          "link": "https://www.webtekno.com/turkiye-yapay-zeka-destekli-otonom-ciftlik-basliyor-h226477.html",
+          "source": "Webtekno",
+          "category": "Türkiye"
+        },
+        {
+          "title": "book-to-course-skill",
+          "link": "https://github.com/sebastianhaba/book-to-course-skill",
+          "source": "GitHub Açık Kaynak"
+        }
+      ],
+      "telegram": true
     }
   ]
 }
