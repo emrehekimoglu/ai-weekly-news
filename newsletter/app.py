@@ -71,7 +71,8 @@ def main():
             f.write(render_html(digest))
         log.info("ÖNİZLEME: Bülten %s dosyasına kaydedildi; abonelere gönderilmeyecek.", config.PREVIEW_FILE)
         failed = mailer.send_all(digest, subscribers.get_preview_recipients(),
-                                 subject=f"[ÖNİZLEME] {mailer.newsletter_subject(digest=digest)}")
+                                 subject=f"{'[YEDEK MODEL TESTİ] ' if config.FALLBACK_TEST else ''}"
+                                         f"[ÖNİZLEME] {mailer.newsletter_subject(digest=digest)}")
     else:
         recipients, sheets_error = subscribers.get_subscribers()
         failed = mailer.send_all(digest, recipients)

@@ -155,6 +155,7 @@ The workflow is [`.github/workflows/newsletter.yml`](.github/workflows/newslette
 - **Manual run:** Actions tab → *Haftalik Teknoloji ve AI Bulteni* → *Run workflow*. It has these inputs:
   - `dry_run` (default off): only collect data from the sources and print how many items each source returned, with every item's title, and how many are left after removing repeats. The LLM is not called and no email is sent.
   - `preview` (default off): generate the full newsletter, but email it only to the owner (`PREVIEW_EMAIL`, or `EMAIL_RECEIVER` if that is unset) with an `[ÖNİZLEME]` subject prefix. The subscriber list is never read. The HTML is also uploaded as the `newsletter-preview` run artifact.
+  - `fallback_test` (default off): a `preview` run with the main model deliberately set to a name that doesn't exist, so the backup model has to write the issue. If the preview email (subject starts with `[YEDEK MODEL TESTİ]`) arrives, the backup model works. If the run fails, the log says why.
   - `alert_test` (default off): send only a sample [failure alert](#failure-alert); nothing else runs.
   - `preview_to` (optional, only with `preview`): send this one preview to another address instead, for example a [mail-tester.com](https://www.mail-tester.com) test address to check the spam score.
 
