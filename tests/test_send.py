@@ -72,7 +72,7 @@ def test_main_exit_code(monkeypatch, set_config, fake_sources, recipients, shoul
     fake_sources([make_item()])
     set_config(DRY_RUN=False, PREVIEW=False)
     monkeypatch.setattr(config, "check_config", lambda: [])
-    monkeypatch.setattr(llm, "generate_digest", lambda items, previous=(): make_digest())
+    monkeypatch.setattr(llm, "generate_digest", lambda items, *args: make_digest())
     monkeypatch.setattr(subscribers, "get_subscribers", lambda: (recipients, None))
 
     if should_fail:

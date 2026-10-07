@@ -66,7 +66,9 @@ def record(digest, date, path=None, scheduled=False):
     issues = [issue for issue in previous if issue.get("date") != date]
     entry = {
         "date": date,
-        "entries": [{"title": e.title, "link": e.item.link, "source": e.item.source} for e in digest.entries + digest.turkiye],
+        # Sıra e-postadaki oy numarasıdır (votes.py); kategori okur oylarını türlere göre toplamak için
+        "entries": [{"title": e.title, "link": e.item.link, "source": e.item.source, "category": e.category}
+                    for e in digest.entries + digest.turkiye],
     }
     if scheduled:
         entry["scheduled"] = True

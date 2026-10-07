@@ -5,7 +5,7 @@ import logging
 import sys
 from datetime import datetime, timezone
 
-from newsletter import config, history, llm, mailer, report, stats, subscribers, welcome
+from newsletter import config, history, llm, mailer, report, stats, subscribers, votes, welcome
 from newsletter.dedup import remove_duplicates
 from newsletter.render import render_html
 from newsletter.sources import SOURCES, collect
@@ -57,6 +57,9 @@ def main():
 
     past_issues = history.load()
     items = history.remove_seen(remove_duplicates(collected), past_issues)
+    # Okur oyları sadece okunur (model çağrısı yok); dry_run'da da günlüğe yazılır ki ücretsiz denenebilsin
+    reader_hint, vote_summary = votes.collect(past_issues)
+    report.set_votes(vote_summary)
 
     if config.DRY_RUN:
         log.info("DRY_RUN: Toplam %d içerik toplandı, tekrarlar ve önceki sayılardakiler çıkınca %d kaldı. "
@@ -65,6 +68,10 @@ def main():
             log.info("%s: %d", name, len(source_items))
             for item in source_items:
                 log.info("  - [%s] %s", item.source, item.title)
+        for line in vote_summary:
+            log.info("%s", line)
+        if reader_hint:
+            log.info("Modele gidecek okur ipucu:%s", reader_hint)
         return
 
     if not items:
@@ -73,7 +80,7 @@ def main():
 
     log.info("Toplam %d adet aday içerik toplandı. Modele aktarılıyor...", len(items))
     try:
-        digest = llm.generate_digest(items, history.recent_titles(past_issues))
+        digest = llm.generate_digest(items, history.recent_titles(past_issues), reader_hint)
     except Exception as e:
         # Bozuk bülten göndermek yerine çalışmayı hata ile bitir
         log.error("[HATA] %s. E-posta gönderilmedi.", e)
