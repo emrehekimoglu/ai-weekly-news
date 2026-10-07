@@ -38,6 +38,15 @@ class Stat:
     label: str
 
 
+@dataclass
+class Tool:
+    """"Haftanın Aracı": GitHub/HN haberlerinden okurun hemen deneyebileceği bir araç veya ipucu."""
+    item: NewsItem  # bağlantı ve kaynak buradan alınır
+    name: str
+    what: str  # ne işe yarar (tek cümle)
+    how: str  # hemen denemek için ilk adım
+
+
 def _today():
     return parse_to_turkish_date(datetime.now(timezone.utc).strftime("%Y-%m-%d"))
 
@@ -51,4 +60,5 @@ class Digest:
     tldr: list[str] = field(default_factory=list)  # "30 saniyede bu hafta" maddeleri
     stat: Stat | None = None
     turkiye: list[DigestEntry] = field(default_factory=list)  # "Türkiye'den" bölümü (boşsa atlanır)
+    tool: Tool | None = None  # "Haftanın Aracı" (uygun aday yoksa atlanır)
     date: str = field(default_factory=_today)  # sayının Türkçe tarihi
