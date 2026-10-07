@@ -72,6 +72,12 @@ def no_share_links(monkeypatch):
     monkeypatch.setattr(config, "ARCHIVE_URL", "")
 
 
+@pytest.fixture(autouse=True)
+def no_link_checks(monkeypatch):
+    """Testler haber bağlantılarını gerçekten açmaya çalışmaz; test_linkcheck.py açıkça açar."""
+    monkeypatch.setattr(config, "LINK_CHECK", False)
+
+
 @pytest.fixture
 def set_config(monkeypatch):
     """set_config(AD=değer, ...) ile newsletter.config değerlerini test süresince değiştirir."""

@@ -1,11 +1,11 @@
-"""Ana akış: ayar kontrolü → veri toplama → tekrarları eleme → LLM ile seçki → şablondan e-posta → gönderim."""
+"""Ana akış: ayar kontrolü → veri toplama → tekrarları ve kırık bağlantıları eleme → LLM ile seçki → şablondan e-posta → gönderim."""
 
 import json
 import logging
 import sys
 from datetime import datetime, timezone
 
-from newsletter import config, history, llm, mailer, report, stats, subscribers, welcome
+from newsletter import config, history, linkcheck, llm, mailer, report, stats, subscribers, welcome
 from newsletter.dedup import remove_duplicates
 from newsletter.render import render_html
 from newsletter.sources import SOURCES, collect
@@ -56,11 +56,11 @@ def main():
         sys.exit(1)
 
     past_issues = history.load()
-    items = history.remove_seen(remove_duplicates(collected), past_issues)
+    items = linkcheck.remove_dead(history.remove_seen(remove_duplicates(collected), past_issues))
 
     if config.DRY_RUN:
-        log.info("DRY_RUN: Toplam %d içerik toplandı, tekrarlar ve önceki sayılardakiler çıkınca %d kaldı. "
-                 "Model ve e-posta atlandı.", len(collected), len(items))
+        log.info("DRY_RUN: Toplam %d içerik toplandı, tekrarlar, önceki sayılardakiler ve kırık bağlantılılar "
+                 "çıkınca %d kaldı. Model ve e-posta atlandı.", len(collected), len(items))
         for name, source_items in by_source.items():
             log.info("%s: %d", name, len(source_items))
             for item in source_items:

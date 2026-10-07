@@ -27,7 +27,7 @@ Output goes through Python's `logging` module to standard output, one plain line
 
 0. **Check settings.** Before anything is collected, `config.check_config` makes sure the required secrets are present (see [Secrets](#secrets)). If something is missing, each problem is printed as a GitHub Actions error and the run stops at once, before any source is fetched or the LLM is called. `dry_run` runs skip this check.
 1. **Collect.** The run walks through the seven sources in `SOURCES` (below). Each item is a `NewsItem` carrying a source, title, date (converted to Turkish, e.g. `28 Eylül 2026`), link and short summary. A source that raises an error is logged and skipped, so one broken feed does not stop the run. Every HTTP request has a timeout; RSS and Atom feeds (arXiv, The Verge, Ars Technica) are fetched with a 15-second limit via `sources/feeds.py`.
-2. **Filter.** Repeats are removed before the LLM sees anything (see [Repeated stories](#repeated-stories)): the same story from two sources is kept once, and stories already sent in the last 8 issues are dropped.
+2. **Filter.** Repeats are removed before the LLM sees anything (see [Repeated stories](#repeated-stories)): the same story from two sources is kept once, and stories already sent in the last 8 issues are dropped. Then every remaining link is opened once (see [Dead links](#dead-links)) and stories whose link is clearly dead are dropped, so the model can never pick them.
 3. **Write.** The remaining items go to an LLM in a single prompt. The model chooses the week's most important developments, prioritising new model launches, then viral, safety or scandal stories, then research and open source, and answers in JSON: a headline for the week (also used as the email subject), a two-sentence intro, three one-line "30 saniyede bu hafta" takeaways, an optional "Haftanın Rakamı" number with a one-sentence explanation, plus, for each pick, the item's number, a Turkish title, a category and a 2 to 3 sentence summary. The email is laid out like a magazine: the headline, the takeaways, the top pick as the cover story, the number, then the remaining picks ranked 02 onwards. An optional "Türkiye'den" section adds up to 3 stories about Turkish companies, startups or research from the Turkish sources; if there are none that week the model returns an empty list and the section is left out.
 4. **Check and render.** The JSON is validated (see [LLM step](#llm-step)); if the model fails three times, the run stops with an error and no email goes out. The picks are then rendered with the templates in [`newsletter/templates/`](newsletter/templates), so the layout is the same every week.
 5. **Send.** The newsletter is emailed to each active subscriber through Gmail, with a personal unsubscribe link in the footer.
@@ -58,6 +58,14 @@ After collecting, the run logs one line with how many stories each source return
 To let a story through again, delete its entry from `data/history.json`.
 
 If every collected item has already been sent, the run exits with status 1 and sends nothing.
+
+## Dead links
+
+`newsletter/linkcheck.py` checks the link of every candidate story before the LLM call, 16 at a time with a 10-second limit, with a browser User-Agent. Checking before the model, rather than after it picks, costs no extra model call and the issue never comes out short.
+
+Only clearly dead links drop a story: HTTP 404 or 410 (a `HEAD` 404 is confirmed with a `GET`, since some servers answer `HEAD` wrongly), a domain that doesn't resolve, or a connection that fails on both tries. Sites that block bots (403, 429, Cloudflare pages), server errors (5xx) and timeouts count as alive, because they usually open fine for readers; TechSpot, for example, answers bots with 403.
+
+Dropped stories are listed in the log and as one warning in the [alert email](#failure-alert), with source, title, reason and link. If more than half of the links fail, the problem is the runner's network rather than the links, so nothing is dropped and a warning says the check was skipped. `dry_run` runs the check too (it makes no model call), so it is a free way to see what would be dropped. Set the `LINK_CHECK` environment variable to `false` to turn it off.
 
 ## LLM step
 
@@ -160,7 +168,7 @@ The workflow is [`.github/workflows/newsletter.yml`](.github/workflows/newslette
 
 - **Schedule:** every Monday at 03:00 UTC (06:00 Turkey time), cron `0 3 * * 1`, with a backup run at 04:37 UTC in case GitHub drops the first one. Issues sent by a scheduled run are marked `"scheduled": true` in `data/history.json`. The backup exits without doing anything if a scheduled run already sent an issue in the last 6 days. Manual sends don't count, so a manual issue on Sunday doesn't stop Monday's issue.
 - **Manual run:** Actions tab → *Haftalik Teknoloji ve AI Bulteni* → *Run workflow*. It has these inputs:
-  - `dry_run` (default off): only collect data from the sources and print how many items each source returned, with every item's title, and how many are left after removing repeats. The LLM is not called and no email is sent.
+  - `dry_run` (default off): only collect data from the sources and print how many items each source returned, with every item's title, and how many are left after removing repeats and dead links. The LLM is not called and no email is sent.
   - `preview` (default off): generate the full newsletter, but email it only to the owner (`PREVIEW_EMAIL`, or `EMAIL_RECEIVER` if that is unset) with an `[ÖNİZLEME]` subject prefix. The subscriber list is never read. The HTML is also uploaded as the `newsletter-preview` run artifact.
   - `fallback_test` (default off): a `preview` run with the main model deliberately set to a name that doesn't exist, so the backup model has to write the issue. If the preview email (subject starts with `[YEDEK MODEL TESTİ]`) arrives, the backup model works. If the run fails, the log says why.
   - `alert_test` (default off): send only a sample [failure alert](#failure-alert); nothing else runs.
@@ -175,7 +183,7 @@ The workflow is [`.github/workflows/newsletter.yml`](.github/workflows/newslette
 GitHub does not reliably email anyone when a scheduled run fails, so the workflow's last step, *Sorun Varsa Bana Haber Ver*, runs `python -m newsletter.alert` after every real send (never for `preview` or `dry_run`):
 
 - If any step failed (no subscribers reached, model failed, a send failed, nothing collected, a crash), it emails the owner with a link to the run log, the story count per source, and the last 40 lines of the log. When the failed run is the 03:00 UTC one, the email says the 04:37 UTC backup run will try again.
-- If the run succeeded but a source returned nothing, or the backup model wrote the issue, it sends a shorter "sent, with warnings" email.
+- If the run succeeded but a source returned nothing, a story was dropped for a dead link, or the backup model wrote the issue, it sends a shorter "sent, with warnings" email.
 - Otherwise it sends nothing.
 
 To check that alerts arrive, run the workflow by hand with only `alert_test` ticked: it skips the newsletter entirely and sends one sample alert marked `[DENEME]`.
