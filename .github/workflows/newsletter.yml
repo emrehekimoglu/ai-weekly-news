@@ -21,6 +21,10 @@ on:
         description: 'Önizlemeyi bu adrese gönder (boşsa bana; ör. mail-tester.com adresi)'
         type: string
         default: ''
+      fallback_test:
+        description: 'Yedek modeli dene: ana model bilerek bozulur, önizlemeyi yedek model yazar (sadece bana gider)'
+        type: boolean
+        default: false
       alert_test:
         description: 'Sadece uyarı e-postasını dene (bülten üretilmez, kimseye bülten gitmez)'
         type: boolean
@@ -75,13 +79,14 @@ jobs:
           GITHUB_EVENT_NAME: ${{ github.event_name }}
           PREVIEW_EMAIL: ${{ secrets.PREVIEW_EMAIL }}
           PREVIEW_TO: ${{ inputs.preview_to }}
+          FALLBACK_TEST: ${{ inputs.fallback_test }}
         # Çıktı run.log'a da yazılır; hata olursa son satırları uyarı e-postasına girer.
         # "shell: bash" pipefail açar, yani main.py hata verirse adım yine kırmızı olur.
         shell: bash
         run: python -u main.py 2>&1 | tee run.log
 
       - name: Önizleme HTML'ini Yükle
-        if: always() && inputs.preview
+        if: always() && (inputs.preview || inputs.fallback_test)
         uses: actions/upload-artifact@v4
         with:
           name: newsletter-preview
@@ -90,7 +95,7 @@ jobs:
 
       - name: Sayı Geçmişini Kaydet
         # Sadece gerçek gönderimlerde; önizleme ve dry_run geçmişi değiştirmez
-        if: always() && !inputs.preview && !inputs.dry_run
+        if: always() && !inputs.preview && !inputs.fallback_test && !inputs.dry_run
         run: |
           if [ -n "$(git status --porcelain data/history.json)" ]; then
             git config user.name "github-actions[bot]"
@@ -103,7 +108,7 @@ jobs:
       # Sadece abonelere gerçekten gönderilen sayılar arşive girer:
       # newsletter/app.py issue.html dosyasını önizleme ve dry_run'da yazmaz.
       - name: Web Arşivine Ekle (GitHub Pages)
-        if: always() && !inputs.dry_run && !inputs.preview && hashFiles('issue.html') != ''
+        if: always() && !inputs.dry_run && !inputs.preview && !inputs.fallback_test && hashFiles('issue.html') != ''
         env:
           SIGNUP_URL: ${{ secrets.SIGNUP_URL }}
         run: |
@@ -127,7 +132,7 @@ jobs:
       # GitHub zamanlanmış çalışmaların hatasını her zaman bildirmiyor. Gerçek gönderimde bir adım
       # başarısız olursa veya bir kaynak boş dönerse (ya da yedek model kullanılırsa) sahibine e-posta gider.
       - name: Sorun Varsa Bana Haber Ver
-        if: always() && !inputs.preview && !inputs.dry_run
+        if: always() && !inputs.preview && !inputs.fallback_test && !inputs.dry_run
         env:
           EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
           EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
