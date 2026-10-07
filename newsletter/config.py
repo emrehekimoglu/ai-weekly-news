@@ -58,6 +58,12 @@ PREVIEW_FILE = "newsletter.html"
 # Abonelere gönderilen bülten (kişisel iptal bağlantısı olmadan); iş akışı bunu
 # GitHub Pages arşivine ekler (archive.py). Önizleme ve DRY_RUN bu dosyayı yazmaz.
 ARCHIVE_FILE = "issue.html"
+# Aynı sayının Telegram gönderisi için kısa özeti (manşet, özet, maddeler); sadece gerçek gönderimde yazılır
+POST_FILE = "issue.json"
+
+# Opsiyonel: her gerçek sayıyı bir Telegram kanalına da gönder (newsletter/telegram.py). İkisi de yoksa adım atlanır.
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
 
 SUBSCRIBERS_FILE = "subscribers.txt"
 

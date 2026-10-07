@@ -61,6 +61,8 @@ def record(digest, date, path=None, scheduled=False):
     path = path or config.HISTORY_FILE
     previous = load(path)
     scheduled = scheduled or any(issue.get("date") == date and issue.get("scheduled") for issue in previous)
+    # Aynı gün tekrar gönderilen sayı Telegram'a ikinci kez gitmesin
+    posted = any(issue.get("date") == date and issue.get("telegram") for issue in previous)
     issues = [issue for issue in previous if issue.get("date") != date]
     entry = {
         "date": date,
@@ -68,9 +70,31 @@ def record(digest, date, path=None, scheduled=False):
     }
     if scheduled:
         entry["scheduled"] = True
+    if posted:
+        entry["telegram"] = True
     issues.append(entry)
     issues = issues[-config.HISTORY_ISSUES:]
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
         json.dump({"issues": issues}, f, ensure_ascii=False, indent=2)
         f.write("\n")
+
+
+def mark_posted(date, path=None):
+    """O tarihli sayının Telegram'a gönderildiğini kaydeder; sayı kayıtlı değilse False."""
+    path = path or config.HISTORY_FILE
+    issues = load(path)
+    for issue in issues:
+        if issue.get("date") == date:
+            issue["telegram"] = True
+            break
+    else:
+        return False
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump({"issues": issues}, f, ensure_ascii=False, indent=2)
+        f.write("\n")
+    return True
+
+
+def posted_to_telegram(date, path=None):
+    return any(issue.get("date") == date and issue.get("telegram") for issue in load(path))

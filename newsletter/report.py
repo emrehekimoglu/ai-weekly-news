@@ -34,6 +34,18 @@ def warn(message):
     _save()
 
 
+def add_warning(message):
+    """Başka bir süreçten (ör. Telegram adımı) dosyadaki rapora uyarı ekler; uyarı e-postası bunu da gösterir."""
+    log.warning("::warning::%s", message)
+    data = load()
+    data["warnings"].append(message)
+    try:
+        with open(config.REPORT_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    except OSError as e:
+        log.warning("Çalışma raporu yazılamadı: %s", e)
+
+
 def _save():
     try:
         with open(config.REPORT_FILE, "w", encoding="utf-8") as f:
