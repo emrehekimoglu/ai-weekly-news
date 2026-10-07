@@ -26,6 +26,13 @@ def test_email_has_forward_block_and_web_link(set_config):
     assert SIGNUP in text and page in text
 
 
+def test_preview_has_no_web_link_because_it_is_never_archived(set_config):
+    set_config(SIGNUP_URL=SIGNUP, ARCHIVE_URL=SITE, PREVIEW=True)
+    html, text = render_html(make_digest()), render_text(make_digest())
+    assert f"{SITE}issues/" not in html and f"{SITE}issues/" not in text
+    assert f'href="{SIGNUP}"' in html
+
+
 def test_archive_keeps_signup_but_drops_web_link_with_footer(set_config):
     set_config(SIGNUP_URL=SIGNUP, ARCHIVE_URL=SITE, WEB_APP_URL="https://script.example.com/exec",
                EMAIL_SENDER="sender@example.com")
