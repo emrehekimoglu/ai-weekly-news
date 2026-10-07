@@ -1,5 +1,7 @@
 """Uyarı e-postası: bülten çalışması hata ile biterse veya bir kaynak boş dönerse sahibine çalışma kaydının bağlantısını yollar.
 
+Sorun yoksa ama okurlar oy verdiyse aynı adrese kısa bir "okur oyları" özeti gider (votes.py).
+
 GitHub zamanlanmış çalışmaların hatalarını her zaman bildirmez; bu yüzden iş akışının son adımı
 `python -m newsletter.alert --status <job.status> --log run.log` olarak her gerçek gönderimde çalışır.
 Önizleme ve dry_run'da çağrılmaz. Ağır kütüphaneleri (jinja2, openai) içe aktarmaz; kurulum adımı
@@ -52,7 +54,8 @@ def build_alert(status, rep, tail, url=None, schedule="", today=None):
     """(konu, metin) döndürür; bildirilecek bir şey yoksa None."""
     failed = status != "success"
     warnings = rep.get("warnings") or []
-    if not failed and not warnings:
+    vote_lines = rep.get("votes") or []
+    if not failed and not warnings and not vote_lines:
         return None
 
     date = parse_to_turkish_date((today or datetime.now(timezone.utc)).strftime("%Y-%m-%d"))
@@ -63,14 +66,19 @@ def build_alert(status, rep, tail, url=None, schedule="", today=None):
         if schedule == MAIN_CRON:
             lines.append("Bu 03:00 UTC'deki otomatik çalışmaydı. Sayı gönderilmediyse 04:37 UTC'deki "
                          "yedek çalışma kendiliğinden tekrar dener.")
-    else:
+    elif warnings:
         subject = f"⚠️ Bülten gönderildi, {len(warnings)} uyarı var • {date}"
         lines = ["Bülten abonelere gönderildi, ama dikkat edilmesi gereken bir şey var."]
+    else:
+        subject = f"📊 Bülten gönderildi • okur oyları • {date}"
+        lines = ["Bülten abonelere gönderildi, sorun yok. Okurların geçen sayılara verdiği oylar aşağıda."]
 
     lines.append("")
     lines.append(f"Çalışma kaydı: {url}" if url else "Çalışma kaydı: GitHub → Actions sekmesi")
     if warnings:
         lines += ["", "Uyarılar:"] + [f"- {w}" for w in warnings]
+    if vote_lines:
+        lines += ["", "Okur oyları", ""] + vote_lines
     sources = rep.get("sources") or {}
     if sources:
         lines += ["", "Kaynaklardan gelen haber sayısı:"] + [f"- {name}: {count}" for name, count in sources.items()]
@@ -108,7 +116,7 @@ def main(argv=None):
         alert = build_alert(args.status, report.load(), log_tail(args.log), run_url(),
                             os.environ.get("EVENT_SCHEDULE", ""))
     if alert is None:
-        log.info("Sorun yok; uyarı e-postası gerekmedi.")
+        log.info("Sorun ve okur oyu yok; e-posta gerekmedi.")
         return 0
     to = recipient()
     if not (config.EMAIL_SENDER and config.EMAIL_PASSWORD and to):

@@ -1,4 +1,4 @@
-"""Çalışma raporu: kaynak sayıları ve uyarılar, iş akışının uyarı e-postası (alert.py) için dosyaya yazılır.
+"""Çalışma raporu: kaynak sayıları, uyarılar ve okur oyları özeti, iş akışının uyarı e-postası (alert.py) için dosyaya yazılır.
 
 Her değişiklikte dosya yeniden yazılır; çalışma ortasında çökse bile o ana kadarki bilgi kalır.
 """
@@ -10,12 +10,13 @@ from newsletter import config
 
 log = logging.getLogger(__name__)
 
-_report = {"sources": {}, "warnings": []}
+_report = {"sources": {}, "warnings": [], "votes": []}
 
 
 def reset():
     _report["sources"] = {}
     _report["warnings"] = []
+    _report["votes"] = []
 
 
 def set_sources(counts):
@@ -31,6 +32,12 @@ def warn(message):
     """GitHub Actions'ta sarı uyarı olarak görünür ve uyarı e-postasına girer."""
     log.warning("::warning::%s", message)
     _report["warnings"].append(message)
+    _save()
+
+
+def set_votes(lines):
+    """Okur oyları özeti (votes.summary_lines); gerçek gönderimde sahibe giden e-postaya girer."""
+    _report["votes"] = list(lines)
     _save()
 
 
@@ -59,5 +66,6 @@ def load(path=None):
         with open(path or config.REPORT_FILE, encoding="utf-8") as f:
             data = json.load(f)
     except (OSError, ValueError):
-        return {"sources": {}, "warnings": []}
-    return {"sources": data.get("sources") or {}, "warnings": data.get("warnings") or []}
+        return {"sources": {}, "warnings": [], "votes": []}
+    return {"sources": data.get("sources") or {}, "warnings": data.get("warnings") or [],
+            "votes": data.get("votes") or []}

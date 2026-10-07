@@ -130,7 +130,7 @@ def run_main(monkeypatch, set_config, fake_sources, tmp_path):
                EMAIL_RECEIVER="", PREVIEW_EMAIL="me@example.com", DRY_RUN=False, PREVIEW=False,
                GCP_SA_KEY=json.dumps({"type": "service_account"}), SPREADSHEET_ID="sheet")
     fake_sources([make_item(link=f"https://example.com/{i}") for i in range(6)])
-    monkeypatch.setattr(llm, "generate_digest", lambda items, recent: make_digest())
+    monkeypatch.setattr(llm, "generate_digest", lambda items, *args: make_digest())
     monkeypatch.setattr(mailer, "send_all", lambda digest, recipients, subject=None: [])
     recorded = []
     monkeypatch.setattr(stats, "record", lambda *a, **kw: recorded.append((a, kw)))

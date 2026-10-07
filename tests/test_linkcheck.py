@@ -122,7 +122,7 @@ def test_model_never_sees_dead_links(monkeypatch, responses, set_config, fake_so
     monkeypatch.setattr(config, "check_config", lambda: [])
     seen = []
 
-    def fake_generate(candidates, previous=()):
+    def fake_generate(candidates, previous=(), reader_hint=""):
         seen.extend(candidates)
         raise RuntimeError("model burada durur")
     monkeypatch.setattr(llm, "generate_digest", fake_generate)

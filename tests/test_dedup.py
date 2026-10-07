@@ -46,7 +46,8 @@ def test_history_round_trip_keeps_last_issues(set_config, isolated_history):
     history.record(make_digest(2), "2026-09-28")  # aynı gün tekrar çalışırsa üzerine yazar
     issues = history.load()
     assert [i["date"] for i in issues] == ["2026-09-21", "2026-09-28"]
-    assert issues[-1]["entries"][1] == {"title": "Haber 2", "link": "https://example.com/2", "source": "s"}
+    assert issues[-1]["entries"][1] == {"title": "Haber 2", "link": "https://example.com/2", "source": "s",
+                                         "category": "Yeni Model"}
     assert history.recent_titles(issues, weeks=1) == ["Haber 1", "Haber 2"]
 
 
@@ -75,7 +76,7 @@ def run(set_config, fake_sources, monkeypatch):
     monkeypatch.setattr(config, "check_config", lambda: [])
     calls = {}
 
-    def fake_generate(items, previous=()):
+    def fake_generate(items, previous=(), reader_hint=""):
         calls["items"], calls["previous"] = items, previous
         return make_digest()
 

@@ -124,6 +124,14 @@ Opening a vote or unsubscribe link with GET changes nothing: the Worker returns 
 
 Votes land in a *Geri Bildirim* sheet of the subscriber spreadsheet (created on the first vote) with the columns time (UTC), issue, story, vote and voter. "Türkiye'den" stories are numbered after the main stories, as in `history.json`. The vote is saved as soon as the link is opened. A mail scanner that opens every link could cast a vote; because each reader's later vote on the same story replaces the earlier one, a real click after that still counts.
 
+### How the votes are used
+
+Each run reads the *Geri Bildirim* sheet before the model is called ([`newsletter/votes.py`](newsletter/votes.py)). Votes on preview issues (`onizleme-…`) and on issues no longer in `history.json` (the last 8 sends) are ignored. Stories are matched to their title and category through `history.json`, which stores each story's category for this.
+
+- **Weekly summary for the owner**: after a real send, the alert step emails a short "📊 okur oyları" summary to the alert address (`ALERT_EMAIL`, else `PREVIEW_EMAIL`, else the sender): 👍/👎 for the last voted issue and each of its stories, plus totals per category. When the run also has warnings or fails, the summary rides along in that email instead. No votes, no email.
+- **Gentle steer for the model**: once the kept issues hold at least 3 story votes, the prompt gets a short "OKUR GERİ BİLDİRİMİ" note naming the categories readers liked and disliked (a category needs 2 votes) and a few liked/disliked titles. It tells the model its priority rules still decide, and to use the note only between stories of similar importance. With fewer votes the prompt is unchanged.
+- **Free check**: a `dry_run` run logs the vote summary and the note the model would get, without calling the model.
+
 ## Link pages (Cloudflare Worker)
 
 Every link a reader clicks (signing up, confirming a signup, unsubscribing, voting) opens [`worker/src/index.js`](worker/src/index.js), a Cloudflare Worker. It replaced an Apps Script web app, which showed Google Drive's "Maalesef şu anda dosyayı açamıyoruz" page to anyone signed in to more than one Google account. The Worker reads and writes the subscriber sheet through the Google Sheets API with the same service account as the newsletter (`GCP_SA_KEY`), so readers never touch Google sign-in. It accepts the same addresses the old web app did:

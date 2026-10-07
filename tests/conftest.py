@@ -2,7 +2,7 @@
 
 import pytest
 
-from newsletter import app, config, report, stats
+from newsletter import app, config, report, stats, votes
 from newsletter.models import Digest, DigestEntry, NewsItem, Stat
 from newsletter.sources import Source
 
@@ -63,6 +63,7 @@ def no_sheets_network(monkeypatch):
     def fail():
         raise RuntimeError("testte Sheets'e bağlanılmaz")
     monkeypatch.setattr(stats, "_open_spreadsheet", fail)
+    monkeypatch.setattr(votes, "_open_spreadsheet", fail)
 
 
 @pytest.fixture(autouse=True)

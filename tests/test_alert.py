@@ -238,7 +238,7 @@ def test_fallback_test_preview_subject_is_marked(monkeypatch, set_config, fake_s
     fake_sources([make_item()])
     set_config(DRY_RUN=False, PREVIEW=True, FALLBACK_TEST=True, SCHEDULED=False, PREVIEW_FILE="/dev/null")
     monkeypatch.setattr(config, "check_config", lambda: [])
-    monkeypatch.setattr(llm, "generate_digest", lambda items, previous=(): make_digest())
+    monkeypatch.setattr(llm, "generate_digest", lambda items, *args: make_digest())
     monkeypatch.setattr(subscribers, "get_preview_recipients", lambda: [{"email": "ben@example.com"}])
     subjects = []
     monkeypatch.setattr(mailer, "send_all", lambda digest, recipients, subject=None: subjects.append(subject) or [])

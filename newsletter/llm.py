@@ -39,7 +39,7 @@ Aynı olayı anlatan birden fazla kayıt varsa sadece en iyi kaynağı seç.
 1. YENİ MODEL LANSMANLARI: Yeni bir GPT, Claude, Gemini, Grok, Llama veya güçlü açık kaynak model duyurulduysa MUTLAKA İLK SIRALARDA YER VER.
 2. VİRAL / SKANDAL / GÜVENLİK OLAYLARI: Modellerin beklenmedik/çıldıran davranışları, güvenlik filtrelerinin çökmesi (jailbreak), sansür tartışmaları veya büyük şirket krizleri varsa MUTLAKA BÜLTENE DAHİL ET.
 3. ÇIĞIR AÇICI ARAŞTIRMALAR & AÇIK KAYNAK: Yeni bir mimari öneren akademik çalışmalar ve GitHub'da patlayan açık kaynak projeler.
-
+{readers}
 YAZIM KURALLARI:
 - Her şeyi Türkçe yaz.
 - "headline": Haftanın manşeti. En çarpıcı gelişmeyi anlatan, dergi kapağı gibi merak uyandıran 3-8 kelimelik bir başlık (soru da olabilir). E-postanın konu satırı da budur. Abartma, verilerde olmayan bir iddia EKLEME.
@@ -69,10 +69,12 @@ Aşağıdaki konular son sayılarda zaten işlendi. Aynı olayı TEKRAR SEÇME; 
 """
 
 
-def build_prompt(items, previous_titles=()):
+def build_prompt(items, previous_titles=(), reader_hint=""):
+    """`reader_hint`: okur oylarından gelen hafif yönlendirme (votes.reader_hint); yoksa boş."""
     raw_data = "\n".join(item.to_prompt(idx) for idx, item in enumerate(items, 1))
     previous = PREVIOUS.format(titles="\n".join(f"- {t}" for t in previous_titles)) if previous_titles else ""
-    return PROMPT.format(raw_data=raw_data, categories=" / ".join(CATEGORIES), previous=previous)
+    return PROMPT.format(raw_data=raw_data, categories=" / ".join(CATEGORIES), previous=previous,
+                         readers=reader_hint)
 
 
 def _client():
@@ -86,7 +88,7 @@ def _client():
     )
 
 
-def generate_digest(items, previous_titles=()):
+def generate_digest(items, previous_titles=(), reader_hint=""):
     """Modelden haftanın seçkisini JSON olarak alır.
 
     Ana model birkaç denemede geçerli yanıt vermezse aynı denemeler yedek modelle tekrarlanır.
@@ -95,7 +97,7 @@ def generate_digest(items, previous_titles=()):
     client = _client()
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": build_prompt(items, previous_titles)},
+        {"role": "user", "content": build_prompt(items, previous_titles, reader_hint)},
     ]
 
     models = [config.MODEL_NAME]
