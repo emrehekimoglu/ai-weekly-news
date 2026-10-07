@@ -149,9 +149,14 @@ The workflow is [`.github/workflows/newsletter.yml`](.github/workflows/newslette
 - **Manual run:** Actions tab → *Haftalik Teknoloji ve AI Bulteni* → *Run workflow*. It has two inputs:
   - `dry_run` (default off): only collect data from the sources and print how many items each source returned, with every item's title, and how many are left after removing repeats. The LLM is not called and no email is sent.
   - `preview` (default off): generate the full newsletter, but email it only to the owner (`PREVIEW_EMAIL`, or `EMAIL_RECEIVER` if that is unset) with an `[ÖNİZLEME]` subject prefix. The subscriber list is never read. The HTML is also uploaded as the `newsletter-preview` run artifact.
+  - `preview_to` (optional, only with `preview`): send this one preview to another address instead, for example a [mail-tester.com](https://www.mail-tester.com) test address to check the spam score.
 
 > [!WARNING]
 > A manual run with both `dry_run` and `preview` off sends the real newsletter to every active subscriber. Use `dry_run` to test the sources and `preview` to see the finished email.
+
+### Deliverability
+
+The newsletter is sent through Gmail's own servers from a gmail.com address, so SPF, DKIM and DMARC already pass with Google's records; there is nothing to set up for them. What the code adds: `Date` and `Message-ID` headers, and RFC 8058 one-click unsubscribe (`List-Unsubscribe` plus `List-Unsubscribe-Post`), which Gmail and Yahoo expect from newsletters and show as an "Unsubscribe" button next to the sender. The Worker accepts that button's `POST` on the same unsubscribe link. The confirmation email and the "subscription confirmed" page ask readers to add the sender to their contacts, which is the strongest signal for keeping mail out of Spam.
 
 ## Web archive
 
