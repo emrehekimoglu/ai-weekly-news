@@ -28,6 +28,13 @@ HAFTANIN RAKAMI: {{ digest.stat.value }}
 {{ entry.summary }}
 Kaynağa Git → {{ entry.item.link }}
 {% endfor %}
+{% if digest.tool %}
+
+HAFTANIN ARACI: {{ digest.tool.name }}
+{{ digest.tool.what }}
+Hemen deneyin: {{ digest.tool.how }}
+Bağlantı → {{ digest.tool.item.link }}
+{% endif %}
 {% if digest.turkiye %}
 
 TÜRKİYE'DEN

@@ -78,6 +78,9 @@ ALERT_EMAIL = os.environ.get("ALERT_EMAIL", "").strip()
 HISTORY_FILE = "data/history.json"
 HISTORY_ISSUES = 8  # bu kadar sayı geriye bakılır
 
+# "false" ise aday haberlerin bağlantıları kırık bağlantı için kontrol edilmez (newsletter/linkcheck.py)
+LINK_CHECK = os.environ.get("LINK_CHECK", "").lower() != "false"
+
 # feedparser.parse(url) zaman aşımı desteklemez; RSS/Atom akışları requests ile bu sürede çekilir
 FEED_TIMEOUT_SECONDS = 15
 
