@@ -70,6 +70,7 @@ Safeguards in `llm.generate_digest` and `llm.parse_digest`:
 - The JSON object is taken from the answer even if the model wraps it in ```` ```json ```` fences or extra text.
 - The intro and each pick's title and summary must be non-empty text, and each number must match a collected item. Repeated numbers are dropped, an unknown category becomes `Endüstri`, and at most 12 picks are kept. The headline, takeaways and number are optional: if any is missing or malformed it is logged and that block is left out of the email, and the subject falls back to the dated default.
 - At least 5 valid picks are required.
+- Each answer may take up to 10 minutes (`LLM_TIMEOUT_SECONDS`; `qwen3.8-max` takes about 5 minutes for one issue). The `openai` client's own silent retries are off, so a slow answer is never requested twice in parallel and billed twice.
 - Up to 3 attempts, waiting 10 s and then 20 s between them. If all three fail, the same 3 attempts are made with a backup model (`qwen3.8-max` by default, changed with `OPENCODE_FALLBACK_MODEL`; set it empty or equal to the main model to turn the backup off). An issue written by the backup model goes out as usual and the [alert email](#failure-alert) says so. If the backup fails too, the script exits with status 1 and sends nothing.
 
 ## Email step
