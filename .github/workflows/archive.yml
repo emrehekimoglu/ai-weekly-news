@@ -1,0 +1,49 @@
+name: Web Arşivini Yenile
+
+# Arşiv sayfalarının görünümü (archive.py) değişince yeni bülten beklemeden index.html, feed.xml
+# ve eski sayfalardaki abonelik bağlantılarını gh-pages dalında yeniler. Elle de çalıştırılabilir.
+on:
+  push:
+    branches: [main]
+    paths: [archive.py]
+  workflow_dispatch:
+
+# Bülten gönderimiyle aynı grup: ikisi aynı anda gh-pages dalına yazmasın
+concurrency:
+  group: newsletter
+  cancel-in-progress: false
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Depoyu Klonla
+        uses: actions/checkout@v4
+
+      - name: Python 3.11 Kur
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Arşivi Yenile
+        env:
+          SIGNUP_URL: ${{ secrets.SIGNUP_URL }}
+        run: |
+          if ! git fetch --depth=1 origin +refs/heads/gh-pages:refs/remotes/origin/gh-pages; then
+            echo "gh-pages dalı henüz yok; ilk gerçek gönderimde oluşacak."
+            exit 0
+          fi
+          git worktree add -B gh-pages site origin/gh-pages
+          python archive.py --rebuild site
+          cd site
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Arşivde değişiklik yok."
+            exit 0
+          fi
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -m "Arşiv: index, RSS ve abonelik bağlantıları yenilendi"
+          git push origin gh-pages
