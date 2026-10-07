@@ -1,5 +1,6 @@
 """Yedek zamanlama: sadece otomatik gönderimler sayılır, elle gönderilenler değil (ağ yok)."""
 
+import contextlib
 import json
 from datetime import date
 
@@ -46,7 +47,8 @@ def test_backup_run_skips_when_scheduled_run_already_sent(monkeypatch, collected
 
 def test_scheduled_run_proceeds_when_no_scheduled_send_this_week(monkeypatch, collected):
     monkeypatch.setattr(history, "scheduled_send_within", lambda issues, days: False)
-    app.main()
+    with contextlib.suppress(SystemExit):  # sahte toplama boş döner; gerçek gönderimde bu hata sayılır
+        app.main()
     assert collected == [1]
 
 
@@ -54,5 +56,6 @@ def test_scheduled_run_proceeds_when_no_scheduled_send_this_week(monkeypatch, co
 def test_manual_preview_and_dry_runs_never_skip(monkeypatch, set_config, collected, override):
     set_config(**override)
     monkeypatch.setattr(history, "scheduled_send_within", lambda issues, days: True)
-    app.main()
+    with contextlib.suppress(SystemExit):
+        app.main()
     assert collected == [1]

@@ -4,3 +4,5 @@ __pycache__/
 newsletter.html
 issue.html
 site/
+run_report.json
+run.log

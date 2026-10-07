@@ -7,7 +7,7 @@ import uuid
 
 from openai import OpenAI
 
-from newsletter import config
+from newsletter import config, report
 from newsletter.models import Digest, DigestEntry, Stat
 
 log = logging.getLogger(__name__)
@@ -78,7 +78,10 @@ def _client():
 
 
 def generate_digest(items, previous_titles=()):
-    """Modelden haftanın seçkisini JSON olarak alır; geçerli yanıt gelene kadar birkaç kez dener."""
+    """Modelden haftanın seçkisini JSON olarak alır.
+
+    Ana model birkaç denemede geçerli yanıt vermezse aynı denemeler yedek modelle tekrarlanır.
+    """
     log.info("OpenCode Go üzerinden bülten hazırlanıyor...")
     client = _client()
     messages = [
@@ -86,24 +89,48 @@ def generate_digest(items, previous_titles=()):
         {"role": "user", "content": build_prompt(items, previous_titles)},
     ]
 
+    models = [config.MODEL_NAME]
+    if config.FALLBACK_MODEL_NAME and config.FALLBACK_MODEL_NAME != config.MODEL_NAME:
+        models.append(config.FALLBACK_MODEL_NAME)
+
+    errors = []
+    for model in models:
+        if model != config.MODEL_NAME:
+            log.warning("[UYARI] %s başarısız oldu; yedek model %s deneniyor...", config.MODEL_NAME, model)
+        try:
+            digest = _generate_with(client, model, messages, items)
+        except RuntimeError as e:
+            errors.append(f"{model}: {e}")
+            continue
+        if model != config.MODEL_NAME:
+            report.warn(f"Ana model ({config.MODEL_NAME}) {config.LLM_MAX_ATTEMPTS} denemede yanıt vermedi; "
+                        f"bülten yedek modelle ({model}) yazıldı")
+        return digest
+
+    raise RuntimeError(f"Bülten üretilemedi ({'; '.join(errors)})")
+
+
+def _generate_with(client, model, messages, items):
+    """Tek bir modelle geçerli yanıt gelene kadar LLM_MAX_ATTEMPTS kez dener."""
     last_error = None
     for attempt in range(1, config.LLM_MAX_ATTEMPTS + 1):
         try:
             response = client.chat.completions.create(
-                model=config.MODEL_NAME, temperature=0.2, messages=messages, timeout=180)
+                model=model, temperature=0.2, messages=messages, timeout=180)
             digest = parse_digest(response.choices[0].message.content or "", items)
-            log.info("✓ Bülten seçkisi doğrulandı: %d haber (deneme %d/%d).",
-                     len(digest.entries), attempt, config.LLM_MAX_ATTEMPTS)
+            log.info("✓ Bülten seçkisi doğrulandı: %d haber (%s, deneme %d/%d).",
+                     len(digest.entries), model, attempt, config.LLM_MAX_ATTEMPTS)
             return digest
         except Exception as e:
             last_error = e
-            log.warning("[UYARI] Bülten üretimi başarısız (deneme %d/%d): %s", attempt, config.LLM_MAX_ATTEMPTS, e)
+            log.warning("[UYARI] Bülten üretimi başarısız (%s, deneme %d/%d): %s",
+                        model, attempt, config.LLM_MAX_ATTEMPTS, e)
             if attempt < config.LLM_MAX_ATTEMPTS:
                 wait = config.LLM_BACKOFF_SECONDS * (2 ** (attempt - 1))
                 log.info("%d saniye sonra tekrar denenecek...", wait)
                 time.sleep(wait)
 
-    raise RuntimeError(f"Bülten {config.LLM_MAX_ATTEMPTS} denemede üretilemedi: {last_error}")
+    raise RuntimeError(f"{config.LLM_MAX_ATTEMPTS} denemede geçerli yanıt yok: {last_error}")
 
 
 def extract_json(content):
