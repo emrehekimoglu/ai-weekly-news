@@ -21,6 +21,10 @@ on:
         description: 'Önizlemeyi bu adrese gönder (boşsa bana; ör. mail-tester.com adresi)'
         type: string
         default: ''
+      alert_test:
+        description: 'Sadece uyarı e-postasını dene (bülten üretilmez, kimseye bülten gitmez)'
+        type: boolean
+        default: false
 
 # Aynı anda iki çalışma gh-pages dalına yazmasın
 concurrency:
@@ -52,6 +56,7 @@ jobs:
           pip install -r requirements.txt
 
       - name: Bülteni Oluştur ve Mail Gönder
+        if: ${{ !inputs.alert_test }}
         env:
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
           EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
@@ -70,7 +75,10 @@ jobs:
           GITHUB_EVENT_NAME: ${{ github.event_name }}
           PREVIEW_EMAIL: ${{ secrets.PREVIEW_EMAIL }}
           PREVIEW_TO: ${{ inputs.preview_to }}
-        run: python main.py
+        # Çıktı run.log'a da yazılır; hata olursa son satırları uyarı e-postasına girer.
+        # "shell: bash" pipefail açar, yani main.py hata verirse adım yine kırmızı olur.
+        shell: bash
+        run: python -u main.py 2>&1 | tee run.log
 
       - name: Önizleme HTML'ini Yükle
         if: always() && inputs.preview
@@ -115,3 +123,22 @@ jobs:
               -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
               commit -m "Arşiv: $(date -u +%Y-%m-%d) sayısı"
           git push origin gh-pages
+
+      # GitHub zamanlanmış çalışmaların hatasını her zaman bildirmiyor. Gerçek gönderimde bir adım
+      # başarısız olursa veya bir kaynak boş dönerse (ya da yedek model kullanılırsa) sahibine e-posta gider.
+      - name: Sorun Varsa Bana Haber Ver
+        if: always() && !inputs.preview && !inputs.dry_run
+        env:
+          EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
+          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+          ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
+          PREVIEW_EMAIL: ${{ secrets.PREVIEW_EMAIL }}
+          JOB_STATUS: ${{ job.status }}
+          EVENT_SCHEDULE: ${{ github.event.schedule }}
+          ALERT_TEST: ${{ inputs.alert_test }}
+        run: |
+          if [ "$ALERT_TEST" = "true" ]; then
+            python -m newsletter.alert --test
+          else
+            python -m newsletter.alert --status "$JOB_STATUS" --log run.log
+          fi

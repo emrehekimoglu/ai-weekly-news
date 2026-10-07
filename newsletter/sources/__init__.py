@@ -41,4 +41,5 @@ def collect(sources):
         except Exception as e:
             log.warning("%s çekilirken hata: %s", source.name, e)
             results[source.name] = []
+    log.info("Kaynak özeti: %s", ", ".join(f"{name} {len(items)}" for name, items in results.items()))
     return results
