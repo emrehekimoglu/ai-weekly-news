@@ -244,6 +244,16 @@ python main.py
 
 A successful local send also adds the issue to `data/history.json`. Don't commit that change unless you mean it, or the same stories will be skipped next Monday.
 
+## Git hooks
+
+Commits in this repo should not carry AI attribution. [`.githooks/commit-msg`](.githooks/commit-msg) removes `Co-Authored-By:` lines that name an AI tool, `Claude-Session:` lines and "Generated with Claude Code" footers from every commit message. Turn it on once per clone:
+
+```bash
+sh scripts/install-hooks.sh
+```
+
+Claude Code sessions run this automatically at startup (see [`.claude/settings.json`](.claude/settings.json)), which also makes them commit under the owner's name instead of "Claude".
+
 ## Tests and CI
 
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every pull request and on pushes to `main`. It gets no secrets, never calls the LLM and never sends email. It runs:
