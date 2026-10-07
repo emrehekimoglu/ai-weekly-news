@@ -33,6 +33,9 @@ ARCHIVE_URL = os.environ.get("ARCHIVE_URL", "").strip() or _default_archive_url(
 # LLM çağrısı için yeniden deneme ayarları
 LLM_MAX_ATTEMPTS = 3
 LLM_BACKOFF_SECONDS = 10  # 10s, 20s, ...
+# Tek bir model yanıtı için bekleme süresi. qwen3.8-max bu bülten için 300-335 sn sürüyor;
+# daha kısa süre, sunucuda tamamlanıp ücretlendirilen yanıtı boşa atıp tekrar istemek demek.
+LLM_TIMEOUT_SECONDS = 600
 MIN_DIGEST_CARDS = 5
 
 # Opsiyonel: Reddit uygulama kimlik bilgileri (yoksa birleşik RSS akışı kullanılır)

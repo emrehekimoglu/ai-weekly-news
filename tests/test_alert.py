@@ -244,3 +244,18 @@ def test_fallback_test_preview_subject_is_marked(monkeypatch, set_config, fake_s
     monkeypatch.setattr(mailer, "send_all", lambda digest, recipients, subject=None: subjects.append(subject) or [])
     app.main()
     assert subjects[0].startswith("[YEDEK MODEL TESTİ] [ÖNİZLEME] ")
+
+
+def test_llm_waits_long_enough_for_slow_models(llm_setup):
+    client = llm_setup({"ana"})
+    timeouts = []
+    original = client.create
+    client.chat.completions.create = lambda model, **kw: timeouts.append(kw["timeout"]) or original(model, **kw)
+    llm.generate_digest(ITEMS)
+    assert timeouts == [config.LLM_TIMEOUT_SECONDS]
+    assert config.LLM_TIMEOUT_SECONDS >= 400  # qwen3.8-max ~335 sn sürüyor
+
+
+def test_openai_client_has_no_hidden_retries(set_config):
+    set_config(OPENCODE_API_KEY="x")
+    assert llm._client().max_retries == 0
