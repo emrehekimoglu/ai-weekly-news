@@ -107,6 +107,8 @@ After every real send, `newsletter/stats.py` appends one row to a **Stats** tab 
 
 The 👍/👎 links point to `WEB_APP_URL?action=vote&issue=YYYY-MM-DD&story=N&v=up|down&voter=…`, handled by the same Worker as unsubscribe. `story=0` is the whole issue; `1`, `2`, … is the story's position in the email, which matches the order of that issue's `entries` in [`data/history.json`](data/history.json). Links never carry the subscriber's email or token: `voter` is the first 12 hex characters of `sha256("<issue>:<token>")`, so a reader can change their vote but can't be followed across issues or traced back to an address. Subscribers without a token (fallback recipients) vote anonymously. Preview emails use `issue=onizleme-YYYY-MM-DD` so test clicks stay separate. The links are left out of the web archive and of the saved preview HTML.
 
+Opening a vote or unsubscribe link with GET changes nothing: the Worker returns a tiny page that re-sends the same link as a POST with JavaScript (or a button if JavaScript is off). People see no difference, but link scanners that open every link in an email (mail-tester, Outlook Safe Links, corporate filters) don't run JavaScript, so they can't cast votes or unsubscribe anyone. Gmail's one-click unsubscribe button POSTs directly.
+
 Votes land in a *Geri Bildirim* sheet of the subscriber spreadsheet (created on the first vote) with the columns time (UTC), issue, story, vote and voter. "Türkiye'den" stories are numbered after the main stories, as in `history.json`. The vote is saved as soon as the link is opened. A mail scanner that opens every link could cast a vote; because each reader's later vote on the same story replaces the earlier one, a real click after that still counts.
 
 ## Link pages (Cloudflare Worker)

@@ -44,6 +44,8 @@ function fakeGoogle(tabs) {
 }
 
 const get = (qs) => worker.fetch(new Request(`https://ai-radar.example.workers.dev/?${qs}`), env);
+// Oy ve iptal, GET'te kendini gönderen sayfa döner; tarayıcının o sayfadan attığı POST'u taklit eder
+const act = (qs) => worker.fetch(new Request(`https://ai-radar.example.workers.dev/?${qs}`, { method: "POST" }), env);
 
 test("confirm and unsubscribe update column C of the matching row", async () => {
   const tabs = { "": [["Zaman", "E-posta", "Durum", "Token"], ["t", "a@x.com", "BEKLIYOR", "tok-a"],
@@ -56,7 +58,7 @@ test("confirm and unsubscribe update column C of the matching row", async () => 
   assert.match(body, /bulten@gmail\.com adresini kişilerinize ekleyin/);
   assert.equal(tabs[""][1][2], "AKTIF");
 
-  res = await get("action=unsubscribe&email=b%40x.com&token=tok-b");
+  res = await act("action=unsubscribe&email=b%40x.com&token=tok-b");
   assert.match(await res.text(), /Abonelikten Ayrıldınız/);
   assert.equal(tabs[""][2][2], "IPTAL");
 });
@@ -71,10 +73,25 @@ test("one-click unsubscribe (RFC 8058 POST from Gmail's button) works on the sam
   assert.equal(tabs[""][1][2], "IPTAL");
 });
 
+test("link scanners (GET/HEAD without JavaScript) can't vote or unsubscribe", async () => {
+  const tabs = { "": [["h"], ["t", "a@x.com", "AKTIF", "tok-a"]] };
+  const calls = fakeGoogle(tabs);
+  for (const qs of ["action=vote&issue=2026-10-12&story=1&v=up&voter=abc", "action=unsubscribe&email=a%40x.com&token=tok-a"]) {
+    const res = await get(qs);
+    assert.equal(res.status, 200);
+    assert.match(await res.text(), /<form method="post" id="f">[\s\S]*\.submit\(\)/);
+    const head = await worker.fetch(new Request(`https://ai-radar.example.workers.dev/?${qs}`, { method: "HEAD" }), env);
+    assert.equal(head.status, 200);
+  }
+  assert.equal(calls.length, 0);
+  assert.equal(tabs[""][1][2], "AKTIF");
+  assert.equal((await get("action=unsubscribe&email=a%40x.com")).status, 400);
+});
+
 test("wrong token changes nothing", async () => {
   const tabs = { "": [["h"], ["t", "a@x.com", "AKTIF", "tok-a"]] };
   fakeGoogle(tabs);
-  const res = await get("action=unsubscribe&email=a%40x.com&token=yanlis");
+  const res = await act("action=unsubscribe&email=a%40x.com&token=yanlis");
   assert.equal(res.status, 404);
   assert.equal(tabs[""][1][2], "AKTIF");
 });
@@ -82,13 +99,13 @@ test("wrong token changes nothing", async () => {
 test("votes create the sheet, then replace a reader's earlier vote", async () => {
   const tabs = { "": [] };
   fakeGoogle(tabs);
-  await get("action=vote&issue=2026-10-12&story=3&v=up&voter=abc123");
+  await act("action=vote&issue=2026-10-12&story=3&v=up&voter=abc123");
   assert.deepEqual(tabs["Geri Bildirim"][0], ["Zaman", "Sayı", "Haber", "Oy", "Okur"]);
   assert.deepEqual(tabs["Geri Bildirim"].slice(1).map((r) => r.slice(1)), [["2026-10-12", 3, "up", "abc123"]]);
 
-  const res = await get("action=vote&issue=2026-10-12&story=3&v=down&voter=abc123");
+  const res = await act("action=vote&issue=2026-10-12&story=3&v=down&voter=abc123");
   assert.match(await res.text(), /Teşekkürler/);
-  await get("action=vote&issue=2026-10-12&story=0&v=up");
+  await act("action=vote&issue=2026-10-12&story=0&v=up");
   assert.deepEqual(tabs["Geri Bildirim"].slice(1).map((r) => r.slice(1)),
                    [["2026-10-12", 3, "down", "abc123"], ["2026-10-12", 0, "up", "anonim"]]);
 });
@@ -109,7 +126,7 @@ test("errors show Google's short message on the page, not the request", async ()
     ? Response.json({ access_token: "tok" })
     : new Response(JSON.stringify({ error: { code: 403, message: "The caller does not have permission" } }),
                    { status: 403 });
-  const res = await get("action=unsubscribe&email=a%40x.com&token=t");
+  const res = await act("action=unsubscribe&email=a%40x.com&token=t");
   assert.equal(res.status, 500);
   const html = await res.text();
   assert.match(html, /Sheets API 403: The caller does not have permission/);
