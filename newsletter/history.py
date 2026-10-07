@@ -64,10 +64,11 @@ def record(digest, date, path=None, scheduled=False):
     # Aynı gün tekrar gönderilen sayı Telegram'a ikinci kez gitmesin
     posted = any(issue.get("date") == date and issue.get("telegram") for issue in previous)
     issues = [issue for issue in previous if issue.get("date") != date]
-    entry = {
-        "date": date,
-        "entries": [{"title": e.title, "link": e.item.link, "source": e.item.source} for e in digest.entries + digest.turkiye],
-    }
+    entries = [{"title": e.title, "link": e.item.link, "source": e.item.source} for e in digest.entries + digest.turkiye]
+    if digest.tool:
+        # Aynı araç sonraki haftalarda tekrar seçilmesin (bağlantısı remove_seen ile elenir)
+        entries.append({"title": digest.tool.name, "link": digest.tool.item.link, "source": digest.tool.item.source})
+    entry = {"date": date, "entries": entries}
     if scheduled:
         entry["scheduled"] = True
     if posted:

@@ -8,7 +8,7 @@ import uuid
 from openai import OpenAI
 
 from newsletter import config, report
-from newsletter.models import Digest, DigestEntry, Stat
+from newsletter.models import Digest, DigestEntry, Stat, Tool
 
 log = logging.getLogger(__name__)
 
@@ -20,6 +20,9 @@ MAX_HEADLINE_CHARS = 90
 MAX_TLDR_CHARS = 160
 MAX_STAT_VALUE_CHARS = 16
 MAX_TURKIYE_CARDS = 3
+MAX_TOOL_NAME_CHARS = 60
+# "Haftanın Aracı" sadece bu kaynaklardan seçilebilir
+TOOL_SOURCES = ("GitHub Açık Kaynak", "Hacker News")
 
 PROMPT = """
 Sen dünya standartlarında kıdemli bir yapay zeka ve teknoloji baş editörüsün.
@@ -50,10 +53,13 @@ YAZIM KURALLARI:
   - "summary": 2-3 cümle ile ne olduğunu, modelin/olayın detayını ve teknik yönünü merak uyandırıcı, doğrudan ve net şekilde anlat. 'Neden Önemli?' gibi ayrı bir bölüm EKLEME.
 - Maddeleri önem sırasına göre diz.
 - "turkiye": "Türkiye'den" bölümü. Kaynağında "(Türkiye)" yazan kayıtlardan, Türkiye'deki şirketleri, girişimleri, yatırımları, araştırmacıları veya düzenlemeleri anlatan EN FAZLA 3 haber seç ("id", "title", "summary" alanlarıyla; özet 1-2 cümle). Yabancı bir haberin Türkçe çevirisi buraya GİRMEZ ve "items" içinde seçtiğin bir haberi burada TEKRARLAMA. Uygun haber yoksa boş liste [] yaz; bölümü ASLA zorla doldurma.
+- "arac": "Haftanın Aracı" bölümü. Kaynağı "GitHub Açık Kaynak" veya "Hacker News" olan kayıtlardan, teknik bilgisi olmayan bir okurun BU HAFTA hemen deneyebileceği TEK bir yapay zeka aracı, uygulama veya pratik ipucu seç (tarayıcıda açılan bir site, indirilebilir bir uygulama, eklenti gibi). Kod yazmayı, sunucu kurmayı veya güçlü bir ekran kartını gerektiren projeleri SEÇME.
+  - "id": Kaydın numarası. "name": Aracın adı (kısa). "what": Ne işe yaradığını anlatan tek cümle. "how": Hemen denemek için ilk adım, 1-2 cümle ("Siteye girip ... yazın" gibi somut). Ham veride olmayan bir özellik, fiyat veya adım UYDURMA.
+  - Bu ölçütlere uyan bir kayıt yoksa null yaz; bölümü ASLA zorla doldurma.
 
 ÇIKTI BİÇİMİ:
 Sadece aşağıdaki yapıda geçerli bir JSON nesnesi döndür; HTML, markdown veya açıklama EKLEME:
-{{"headline": "...", "intro": "...", "tldr": ["...", "...", "..."], "stat": {{"value": "...", "label": "..."}}, "items": [{{"id": 3, "title": "...", "category": "Yeni Model", "summary": "..."}}], "turkiye": [{{"id": 7, "title": "...", "summary": "..."}}]}}
+{{"headline": "...", "intro": "...", "tldr": ["...", "...", "..."], "stat": {{"value": "...", "label": "..."}}, "items": [{{"id": 3, "title": "...", "category": "Yeni Model", "summary": "..."}}], "turkiye": [{{"id": 7, "title": "...", "summary": "..."}}], "arac": {{"id": 12, "name": "...", "what": "...", "how": "..."}}}}
 """
 
 
@@ -193,7 +199,7 @@ def parse_digest(content, items):
         raise ValueError(f"Yalnızca {len(entries)} haber seçilmiş (en az {config.MIN_DIGEST_CARDS} bekleniyor)")
     return Digest(intro=intro, entries=entries[:MAX_DIGEST_CARDS], headline=_headline(data.get("headline")),
                   tldr=_tldr(data.get("tldr")), stat=_stat(data.get("stat")),
-                  turkiye=_turkiye(data.get("turkiye"), items, seen))
+                  turkiye=_turkiye(data.get("turkiye"), items, seen), tool=_tool(data.get("arac"), items))
 
 
 def _optional_text(value, max_chars):
@@ -255,3 +261,21 @@ def _turkiye(value, items, used_ids):
         seen.add(idx)
         entries.append(DigestEntry(item=items[idx - 1], title=title, category="Türkiye", summary=summary))
     return entries[:MAX_TURKIYE_CARDS]
+
+
+def _tool(value, items):
+    """"Haftanın Aracı": GitHub/HN kaynaklı geçerli bir seçim veya None (bozuk seçim bülteni durdurmaz, bölüm atlanır)."""
+    if value is None:
+        return None
+    pick = value if isinstance(value, dict) else {}
+    idx = pick.get("id")
+    if isinstance(idx, str) and idx.strip().isdigit():
+        idx = int(idx)
+    name = _optional_text(pick.get("name"), MAX_TOOL_NAME_CHARS)
+    what = _optional_text(pick.get("what"), MAX_TLDR_CHARS * 2)
+    how = _optional_text(pick.get("how"), MAX_TLDR_CHARS * 3)
+    if (not isinstance(idx, int) or not 1 <= idx <= len(items) or items[idx - 1].source not in TOOL_SOURCES
+            or not name or not what or not how):
+        log.warning("'arac' geçersiz, 'Haftanın Aracı' bölümü atlandı: %r", value)
+        return None
+    return Tool(item=items[idx - 1], name=name, what=what, how=how)
