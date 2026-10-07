@@ -136,6 +136,12 @@ To protect the Gmail account's daily sending limit (which the Monday issue also 
 
 The Google Form keeps working alongside it: its Apps Script `onFormSubmit` trigger still writes the token and sends its own confirmation email, with `WEB_APP_URL` pointing at the Worker.
 
+### Welcome issue
+
+New readers don't wait for Monday: when a confirm link turns a row from `BEKLIYOR` (or anything else) into `AKTIF`, the Worker also emails them the latest issue with a "Hoş geldiniz" box on top. Both signup paths get it, because the Form's confirmation email links to the same Worker.
+
+After every real send, [`newsletter/welcome.py`](newsletter/welcome.py) saves that issue to [`data/latest-issue.json`](data/latest-issue.json) (subject, HTML and text), with placeholders where the reader's own links go: `__RADAR_BASE__` (the Worker address), `__RADAR_UNSUBSCRIBE__` and `__RADAR_VOTER__`. The *Sayı Geçmişini Kaydet* step commits it with `history.json`. The file holds no subscriber data. The Worker reads it from `LATEST_ISSUE_URL` in [`worker/wrangler.toml`](worker/wrangler.toml) (raw.githubusercontent.com, so up to about 5 minutes behind), fills in the reader's unsubscribe link (also as `List-Unsubscribe` headers) and the same `voter` id the newsletter would give them, and sends it in the background so the confirm page doesn't wait. Clicking the confirm link again sends nothing. If the file is missing or the email fails, the subscription is still confirmed.
+
 The Worker is deployed by [`.github/workflows/worker.yml`](.github/workflows/worker.yml) on every push to `main` that changes `worker/`, or by hand from the Actions tab. It passes `GCP_SA_KEY`, `SPREADSHEET_ID`, `EMAIL_SENDER` and `EMAIL_PASSWORD` to the Worker as secrets; the archive address for the signup page is `ARCHIVE_URL` in [`worker/wrangler.toml`](worker/wrangler.toml). Without the Cloudflare secrets the workflow only runs the tests and prints a warning. Tests: `cd worker && node --test` (no network; Google is faked).
 
 One-time setup:

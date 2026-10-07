@@ -58,6 +58,8 @@ PREVIEW_FILE = "newsletter.html"
 # Abonelere gönderilen bülten (kişisel iptal bağlantısı olmadan); iş akışı bunu
 # GitHub Pages arşivine ekler (archive.py). Önizleme ve DRY_RUN bu dosyayı yazmaz.
 ARCHIVE_FILE = "issue.html"
+# Yeni okura onay anında gönderilen son sayı (yer tutuculu); iş akışı commit eder, Worker okur
+WELCOME_FILE = "data/latest-issue.json"
 # Aynı sayının Telegram gönderisi için kısa özeti (manşet, özet, maddeler); sadece gerçek gönderimde yazılır
 POST_FILE = "issue.json"
 

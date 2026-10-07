@@ -15,13 +15,17 @@ const env = {
   ARCHIVE_URL: "https://arsiv.example/",
 };
 
+const LATEST_URL = "https://raw.example/data/latest-issue.json";
+
 /** Bellekte duran sahte tablo: { "": ilk sayfa satırları, "Geri Bildirim": ... } */
-function fakeGoogle(tabs) {
+function fakeGoogle(tabs, latest = null) {
   const calls = [];
   // Workers'taki gibi: fetch başka bir nesneye bağlı çağrılırsa hata verir
   globalThis.fetch = async function (url, opts = {}) {
     if (this !== undefined && this !== globalThis) throw new TypeError("Illegal invocation");
     calls.push({ url, method: opts.method || "GET", body: opts.body });
+    // GitHub'daki data/latest-issue.json (hoş geldin e-postası)
+    if (url === LATEST_URL) return latest ? Response.json(latest) : new Response("404: Not Found", { status: 404 });
     if (url.startsWith("https://oauth2.googleapis.com")) return Response.json({ access_token: "tok" });
     const path = decodeURIComponent(url.split("/spreadsheets/SHEET")[1].split("?")[0]);
     if (path === ":batchUpdate") {
@@ -255,4 +259,85 @@ test("a Gmail login failure shows the SMTP error, never the password", async () 
   assert.match(html, /SMTP 535: 5.7.8 Username and Password not accepted/);
   assert.doesNotMatch(html, /app pass/);
   assert.equal(tabs[""].length, 1);  // satır eklenmedi, okur hemen tekrar deneyebilir
+});
+
+// newsletter/welcome.py'nin kaydettiği biçim (yer tutucularla)
+const LATEST = {
+  issue: "2026-10-12",
+  subject: "Açık kaynak arayı kapattı mı? • Radar, 12 Ekim 2026",
+  html: '<p>Hoş geldiniz!</p><a href="__RADAR_BASE__?action=vote&amp;issue=2026-10-12&amp;story=1&amp;v=up&amp;voter=__RADAR_VOTER__">👍</a>'
+    + '<a href="__RADAR_UNSUBSCRIBE__">iptal</a>',
+  text: "Hoş geldiniz!\n👍 __RADAR_BASE__?action=vote&issue=2026-10-12&story=0&v=up&voter=__RADAR_VOTER__\n"
+    + "Ayrılmak için: __RADAR_UNSUBSCRIBE__\n",
+};
+
+/** Workers'taki ctx: waitUntil'e verilen işleri test sonunda bekler. */
+function fakeCtx() {
+  const tasks = [];
+  return { waitUntil: (p) => tasks.push(p), done: () => Promise.all(tasks) };
+}
+
+const confirm = async (qs, ctx) => worker.fetch(new Request(`https://ai-radar.example.workers.dev/?${qs}`),
+                                                { ...env, LATEST_ISSUE_URL: LATEST_URL }, ctx);
+
+test("confirming sends the latest issue with the reader's own unsubscribe and vote links", async () => {
+  const tabs = { "": [["h"], ["t", "a@x.com", "BEKLIYOR", "tok-a"]] };
+  fakeGoogle(tabs, LATEST);
+  const mail = fakeSmtp();
+  const ctx = fakeCtx();
+  const res = await confirm("action=confirm&email=a%40x.com&token=tok-a", ctx);
+  assert.match(await res.text(), /son sayıyı da şimdi e-posta adresinize gönderiyoruz/);
+  await ctx.done();
+  assert.equal(tabs[""][1][2], "AKTIF");
+
+  assert.equal(mail.messages.length, 1);
+  assert.ok(mail.commands.includes("RCPT TO:<a@x.com>"));
+  const msg = mail.messages[0];
+  const unsub = "https://ai-radar.example.workers.dev/?action=unsubscribe&email=a%40x.com&token=tok-a";
+  assert.ok(msg.includes(`\r\nList-Unsubscribe: <${unsub}>\r\nList-Unsubscribe-Post: List-Unsubscribe=One-Click\r\n`));
+  const subject = msg.match(/^Subject: =\?UTF-8\?B\?(.+)\?=$/m)[1];
+  assert.equal(Buffer.from(subject, "base64").toString("utf8"), `Hoş geldiniz! ${LATEST.subject}`);
+
+  const [text, html] = decodeParts(msg);
+  assert.doesNotMatch(text + html, /__RADAR_/);
+  // newsletter/mailer.py ile aynı okur kimliği: sha256("2026-10-12:tok-a")[:12]
+  assert.ok(text.includes("https://ai-radar.example.workers.dev/?action=vote&issue=2026-10-12&story=0&v=up&voter=73e77b03bfa5"));
+  assert.ok(text.includes(`Ayrılmak için: ${unsub}\n`));
+  assert.ok(html.includes('href="https://ai-radar.example.workers.dev/?action=vote&amp;issue=2026-10-12&amp;story=1&amp;v=up&amp;voter=73e77b03bfa5"'));
+  assert.ok(html.includes(`href="${unsub.replace(/&/g, "&amp;")}"`));
+
+  // Oy bağlantısı Worker'da geçerli
+  assert.ok(cleanVote({ issue: "2026-10-12", story: "1", v: "up", voter: "73e77b03bfa5" }));
+});
+
+test("no welcome email for an already active reader or when there is no saved issue yet", async () => {
+  let tabs = { "": [["h"], ["t", "a@x.com", "AKTIF", "tok-a"]] };
+  fakeGoogle(tabs, LATEST);
+  const mail = fakeSmtp();
+  let ctx = fakeCtx();
+  let res = await confirm("action=confirm&email=a%40x.com&token=tok-a", ctx);
+  assert.doesNotMatch(await res.text(), /son sayıyı/);
+  await ctx.done();
+
+  tabs = { "": [["h"], ["t", "b@x.com", "BEKLIYOR", "tok-b"]] };
+  fakeGoogle(tabs);  // latest-issue.json henüz yok (404)
+  ctx = fakeCtx();
+  res = await confirm("action=confirm&email=b%40x.com&token=tok-b", ctx);
+  const body = await res.text();
+  assert.match(body, /Aboneliğiniz Onaylandı/);
+  assert.doesNotMatch(body, /son sayıyı/);
+  await ctx.done();
+  assert.equal(tabs[""][1][2], "AKTIF");
+  assert.equal(mail.messages.length, 0);
+});
+
+test("a failed welcome email still confirms the subscription", async () => {
+  const tabs = { "": [["h"], ["t", "a@x.com", "BEKLIYOR", "tok-a"]] };
+  fakeGoogle(tabs, LATEST);
+  fakeSmtp({ rejectAuth: true });
+  const ctx = fakeCtx();
+  const res = await confirm("action=confirm&email=a%40x.com&token=tok-a", ctx);
+  assert.equal(res.status, 200);
+  await ctx.done();  // hata yutulur, sadece loglanır
+  assert.equal(tabs[""][1][2], "AKTIF");
 });

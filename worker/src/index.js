@@ -14,6 +14,10 @@
  * Ayrıca bültenin kendi abonelik sayfası: GET /abone formu gösterir, POST /abone tabloya BEKLIYOR satırı
  * ekleyip Gmail üzerinden onay e-postası gönderir (çift onay; Google Formu'na gerek kalmaz).
  *
+ * Onaylanan okura beklemeden son sayı da gönderilir (hoş geldin e-postası): bülten iş akışı her gerçek
+ * gönderimden sonra sayıyı yer tutuculu bağlantılarla data/latest-issue.json olarak depoya commit eder
+ * (newsletter/welcome.py); Worker onu LATEST_ISSUE_URL'den okuyup okurun kendi iptal ve oy bağlantılarını koyar.
+ *
  * Abone tablosu Google Sheets API ile, servis hesabı (GCP_SA_KEY) üzerinden okunup yazılır;
  * tablo bu hesapla "Düzenleyen" olarak paylaşılmış olmalı. Okurun Google hesabıyla hiçbir ilgisi
  * yoktur; bu yüzden birden fazla Google hesabı açık tarayıcılarda da çalışır.
@@ -28,7 +32,7 @@ const SIGNUP_COOLDOWN_MS = 10 * 60 * 1000;  // aynı adrese 10 dakikada en fazla
 const SIGNUPS_PER_DAY = 50;  // Gmail'in günlük gönderim sınırı bültene kalsın diye
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const p = Object.fromEntries(url.searchParams);
     const isSignup = url.pathname === "/abone" || url.pathname === "/abone/";
@@ -42,7 +46,7 @@ export default {
       const sheets = new Sheets(env);
       if (isSignup && request.method === "POST") return await signup(sheets, env, request, url);
       if (p.action === "vote") return await vote(sheets, p);
-      if (p.action === "confirm" || p.action === "unsubscribe") return await subscription(sheets, p, env);
+      if (p.action === "confirm" || p.action === "unsubscribe") return await subscription(sheets, p, env, ctx, url.origin);
       return page(400, "🤔", "Geçersiz istek", "Bu bağlantı tanınmadı.");
     } catch (err) {
       console.error(err);
@@ -52,7 +56,7 @@ export default {
   },
 };
 
-async function subscription(sheets, p, env) {
+async function subscription(sheets, p, env, ctx, origin) {
   const email = (p.email || "").trim().toLowerCase();
   const token = (p.token || "").trim();
   if (!email || !token) return page(400, "🤔", "Geçersiz veya eksik istek", "Bağlantı eksik görünüyor.");
@@ -63,12 +67,21 @@ async function subscription(sheets, p, env) {
     const row = rows[i];
     if (String(row[1] || "").trim().toLowerCase() === email && String(row[3] || "").trim() === token) {
       if (p.action === "confirm") {
+        const wasActive = String(row[2] || "").trim().toUpperCase() === "AKTIF";
         await sheets.put(`C${i + 1}`, [["AKTIF"]]);
+        // Bağlantıya ikinci kez tıklayan (veya tarayan) kişiye sayı tekrar gitmez
+        const welcome = wasActive ? null : await welcomeEmail(env, origin, email, token).catch((err) => {
+          console.error("Son sayı okunamadı:", err);
+          return null;
+        });
+        // E-posta arka planda gider; sayfa SMTP'yi beklemez, gönderilemezse abonelik yine geçerlidir
+        if (welcome) ctx.waitUntil(sendMail(env, welcome).catch((err) => console.error("Hoş geldin e-postası:", err)));
+        const sent = welcome ? " Beklememeniz için son sayıyı da şimdi e-posta adresinize gönderiyoruz." : "";
         // Kişilerdeki bir adresten gelen e-posta Gmail'de spam'e ve çoğunlukla Promosyonlar'a düşmez
         const contact = env.EMAIL_SENDER ? ` Bültenin spam klasörüne düşmemesi için ${env.EMAIL_SENDER} `
           + "adresini kişilerinize ekleyin." : "";
         return page(200, "✓", "Aboneliğiniz Onaylandı!",
-                    `Her Pazartesi sabahı güncel AI gelişmelerini gelen kutunuzda bulacaksınız.${contact}`, "#16a34a");
+                    `Her Pazartesi sabahı güncel AI gelişmelerini gelen kutunuzda bulacaksınız.${sent}${contact}`, "#16a34a");
       }
       await sheets.put(`C${i + 1}`, [["IPTAL"]]);
       return page(200, "👋", "Abonelikten Ayrıldınız",
@@ -153,6 +166,39 @@ e-postayı yok sayabilirsiniz; onaylamadığınız sürece size bülten gönderi
 düşmemesi için bu e-postanın geldiği adresi kişilerinize ekleyin.</p>
 </div></body></html>`,
   };
+}
+
+// newsletter/welcome.py'deki yer tutucular
+const PLACEHOLDER = { base: "__RADAR_BASE__", unsubscribe: "__RADAR_UNSUBSCRIBE__", voter: "__RADAR_VOTER__" };
+
+/** Son sayıyı okura özel bağlantılarla hazırlar; kayıtlı sayı yoksa veya bozuksa null. */
+export async function welcomeEmail(env, origin, email, token) {
+  const to = cleanEmail(email);
+  if (!env.LATEST_ISSUE_URL || !to || !token) return null;
+  const res = await fetch(env.LATEST_ISSUE_URL, { cf: { cacheTtl: 300 } });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const latest = await res.json();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(latest.issue)) || typeof latest.html !== "string"
+      || typeof latest.text !== "string" || typeof latest.subject !== "string") return null;
+
+  const unsubscribe = `${origin}/?action=unsubscribe&email=${encodeURIComponent(to)}&token=${encodeURIComponent(token)}`;
+  // newsletter/mailer.py feedback_url_builder ile aynı kimlik: sha256("sayı:token") ilk 12 hane
+  const voter = await sha256hex(`${latest.issue}:${token}`).then((h) => h.slice(0, 12));
+  const fill = (body, unsub) => body.split(PLACEHOLDER.base).join(`${origin}/`)
+    .split(PLACEHOLDER.unsubscribe).join(unsub).split(PLACEHOLDER.voter).join(voter);
+  return {
+    to,
+    subject: `Hoş geldiniz! ${latest.subject}`.replace(/[\r\n]+/g, " "),
+    text: fill(latest.text, unsubscribe),
+    html: fill(latest.html, esc(unsubscribe)),
+    // Bültendeki gibi: Gmail'in "Abonelikten çık" düğmesi (RFC 8058)
+    headers: { "List-Unsubscribe": `<${unsubscribe}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" },
+  };
+}
+
+async function sha256hex(text) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 /** Sadece beklenen biçimdeki oy değerlerini kabul eder; aksi halde null. */

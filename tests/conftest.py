@@ -33,6 +33,14 @@ def isolated_history(monkeypatch, tmp_path):
 
 
 @pytest.fixture(autouse=True)
+def isolated_welcome(monkeypatch, tmp_path):
+    """Testler depodaki data/latest-issue.json dosyasına asla dokunmaz."""
+    path = tmp_path / "latest-issue.json"
+    monkeypatch.setattr(config, "WELCOME_FILE", str(path))
+    return path
+
+
+@pytest.fixture(autouse=True)
 def isolated_report(monkeypatch, tmp_path):
     """Çalışma raporu depo köküne değil geçici klasöre yazılır."""
     path = tmp_path / "run_report.json"

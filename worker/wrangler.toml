@@ -9,3 +9,5 @@ workers_dev = true
 [vars]
 # Abonelik sayfasındaki "Geçmiş sayılar" bağlantısı (GitHub Pages arşivi)
 ARCHIVE_URL = "https://emrehekimoglu.github.io/ai-weekly-news/"
+# Onaylanan okura hemen gönderilen son sayı (bülten iş akışı her gönderimden sonra commit eder)
+LATEST_ISSUE_URL = "https://raw.githubusercontent.com/emrehekimoglu/ai-weekly-news/main/data/latest-issue.json"

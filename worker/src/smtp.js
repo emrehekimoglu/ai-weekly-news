@@ -24,7 +24,7 @@ const wrap = (s) => s.replace(/.{1,76}/g, "$&\r\n");
 const word = (s) => `=?UTF-8?B?${b64utf8(s)}?=`;
 
 /** Düz metin + HTML içeren MIME iletisi (base64 gövdeler; satırlar asla "." ile başlamaz). */
-export function buildMessage({ from, fromName, to, subject, text, html }) {
+export function buildMessage({ from, fromName, to, subject, text, html, headers = {} }) {
   const boundary = `radar-${crypto.randomUUID()}`;
   const part = (type, body) => `--${boundary}\r\nContent-Type: ${type}; charset=utf-8\r\n`
     + `Content-Transfer-Encoding: base64\r\n\r\n${wrap(b64utf8(body))}`;
@@ -34,6 +34,8 @@ export function buildMessage({ from, fromName, to, subject, text, html }) {
     `Subject: ${word(subject)}`,
     `Date: ${new Date().toUTCString().replace("GMT", "+0000")}`,
     `Message-ID: <${crypto.randomUUID()}@${from.split("@")[1]}>`,
+    // Ek başlıklar (ör. List-Unsubscribe); satır sonu içeren değer iletiyi bozamasın diye ayıklanır
+    ...Object.entries(headers).map(([name, value]) => `${name}: ${String(value).replace(/[\r\n]+/g, " ")}`),
     "MIME-Version: 1.0",
     `Content-Type: multipart/alternative; boundary="${boundary}"`,
     "",
@@ -41,10 +43,11 @@ export function buildMessage({ from, fromName, to, subject, text, html }) {
   ].join("\r\n");
 }
 
-export async function sendMail(env, { to, subject, text, html }) {
+export async function sendMail(env, { to, subject, text, html, headers }) {
   const user = env.EMAIL_SENDER, pass = env.EMAIL_PASSWORD;
   if (!user || !pass) throw new Error("E-posta ayarı eksik: EMAIL_SENDER / EMAIL_PASSWORD");
-  const message = buildMessage({ from: user, fromName: "AI & Teknoloji Radarı", to, subject, text, html });
+  const message = buildMessage({ from: user, fromName: "AI & Teknoloji Radarı", to, subject, text, html,
+                                headers });
 
   const socket = await smtp.connect({ hostname: "smtp.gmail.com", port: 465 }, { secureTransport: "on" });
   const writer = socket.writable.getWriter();

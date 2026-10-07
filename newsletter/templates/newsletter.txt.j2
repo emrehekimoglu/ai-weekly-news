@@ -1,5 +1,9 @@
 AI & TEKNOLOJİ RADARI • {{ digest.date }}
 
+{% if welcome %}
+Hoş geldiniz! Aboneliğiniz onaylandı. Pazartesiyi beklemeyin diye son sayımızı hemen gönderiyoruz. Yeni sayılar her Pazartesi sabahı gelen kutunuzda olacak.
+
+{% endif %}
 {% if digest.headline %}
 {{ digest.headline | upper }}
 
