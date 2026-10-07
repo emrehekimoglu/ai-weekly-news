@@ -96,10 +96,17 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--status", default="failure", help="GitHub job.status: success, failure veya cancelled")
     parser.add_argument("--log", default="run.log", help="bülten çalışmasının çıktısı")
+    parser.add_argument("--test", action="store_true", help="örnek bir uyarı gönder (iş akışının alert_test girdisi)")
     args = parser.parse_args(argv)
 
-    alert = build_alert(args.status, report.load(), log_tail(args.log), run_url(),
-                        os.environ.get("EVENT_SCHEDULE", ""))
+    if args.test:
+        subject, body = build_alert("failure", {"sources": {"arXiv": 8, "GitHub": 0},
+                                                "warnings": ["GitHub kaynağı boş döndü (0 haber)"]},
+                                    ["[HATA] Bu bir deneme; gerçek bir hata yok."], run_url())
+        alert = (f"[DENEME] {subject}", "Bu bir deneme e-postasıdır; gerçek bir sorun yok.\n\n" + body)
+    else:
+        alert = build_alert(args.status, report.load(), log_tail(args.log), run_url(),
+                            os.environ.get("EVENT_SCHEDULE", ""))
     if alert is None:
         log.info("Sorun yok; uyarı e-postası gerekmedi.")
         return 0

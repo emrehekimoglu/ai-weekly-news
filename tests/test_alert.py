@@ -1,6 +1,7 @@
 """Güvenilir pazartesiler: kaynak sağlık kontrolü, yedek model ve uyarı e-postası (ağ yok)."""
 
 import email
+import email.header
 import json
 from datetime import datetime, timezone
 from types import SimpleNamespace
@@ -208,3 +209,10 @@ def test_main_reports_missing_credentials(smtp, set_config, tmp_path):
 
 def test_config_defaults_have_a_distinct_fallback():
     assert config.FALLBACK_MODEL_NAME and config.FALLBACK_MODEL_NAME != config.MODEL_NAME
+
+
+def test_test_flag_sends_a_marked_sample(smtp):
+    assert alert.main(["--test"]) == 0
+    msg = email.message_from_string(smtp[0][2])
+    assert "[DENEME]" in str(email.header.make_header(email.header.decode_header(msg["Subject"])))
+    assert "gerçek bir sorun yok" in msg.get_payload(decode=True).decode("utf-8")
