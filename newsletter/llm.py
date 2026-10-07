@@ -73,6 +73,9 @@ def _client():
     return OpenAI(
         base_url="https://opencode.ai/zen/go/v1",
         api_key=config.OPENCODE_API_KEY,
+        # Yeniden denemeyi generate_digest yönetir; istemcinin gizli 2 tekrarı her zaman aşımında
+        # ücretli bir isteği daha başlatıyordu (sunucu ilk isteği yine de tamamlayıp ücretlendiriyor)
+        max_retries=0,
         default_headers={"User-Agent": "newsletter-agent/1.0", "x-opencode-session": f"ses_{uuid.uuid4().hex}"},
     )
 
@@ -116,7 +119,7 @@ def _generate_with(client, model, messages, items):
     for attempt in range(1, config.LLM_MAX_ATTEMPTS + 1):
         try:
             response = client.chat.completions.create(
-                model=model, temperature=0.2, messages=messages, timeout=180)
+                model=model, temperature=0.2, messages=messages, timeout=config.LLM_TIMEOUT_SECONDS)
             digest = parse_digest(response.choices[0].message.content or "", items)
             log.info("✓ Bülten seçkisi doğrulandı: %d haber (%s, deneme %d/%d).",
                      len(digest.entries), model, attempt, config.LLM_MAX_ATTEMPTS)
