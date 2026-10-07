@@ -61,6 +61,8 @@ jobs:
           SIGNUP_URL: ${{ secrets.SIGNUP_URL }}
           GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
           SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
+          # GitHub kaynağı kimlikli arama yapsın; kimliksiz arama paylaşılan runner IP'sinde 403 (hız sınırı) alıyor
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
           REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
           DRY_RUN: ${{ inputs.dry_run }}
