@@ -6,7 +6,14 @@
   <atom:link href="https://emrehekimoglu.github.io/ai-weekly-news/feed.xml" rel="self" type="application/rss+xml"/>
   <description>Yapay zekâ ve teknoloji dünyasında haftanın öne çıkanları, her Pazartesi Türkçe.</description>
   <language>tr</language>
-  <lastBuildDate>Wed, 07 Oct 2026 06:00:00 +0000</lastBuildDate>
+  <lastBuildDate>Mon, 12 Oct 2026 06:00:00 +0000</lastBuildDate>
+  <item>
+    <title>GPT-6 ve Claude Haiku 5.5 Aynı Hafta (12 Ekim 2026)</title>
+    <link>https://emrehekimoglu.github.io/ai-weekly-news/issues/2026-10-12.html</link>
+    <guid isPermaLink="true">https://emrehekimoglu.github.io/ai-weekly-news/issues/2026-10-12.html</guid>
+    <pubDate>Mon, 12 Oct 2026 06:00:00 +0000</pubDate>
+    <description>OpenAI, GPT-6'yı ve 'herkes için akıllı arayüz' vizyonunu duyurdu.</description>
+  </item>
   <item>
     <title>Mistral Large 4: 1 Trilyon Parametre (7 Ekim 2026)</title>
     <link>https://emrehekimoglu.github.io/ai-weekly-news/issues/2026-10-07.html</link>
