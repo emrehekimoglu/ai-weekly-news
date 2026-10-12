@@ -7,6 +7,9 @@ on:
     # Yedek: GitHub saat başı zamanlamaları bazen düşürür. Bu hafta otomatik çalışma zaten
     # gönderdiyse main.py hiçbir şey yapmadan çıkar (elle gönderilen sayılar sayılmaz).
     - cron: '37 4 * * 1'
+    # Ek yedekler: GitHub zamanlanmış çalışmaları saatlerce geciktirebiliyor ya da tamamen atlayabiliyor.
+    - cron: '23 7 * * 1'
+    - cron: '47 10 * * 1'
   workflow_dispatch: # Manuel test butonu
     inputs:
       dry_run:

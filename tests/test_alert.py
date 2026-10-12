@@ -126,7 +126,7 @@ def test_failure_alert_has_run_link_and_log_tail():
 
 def test_main_cron_failure_mentions_backup_run():
     _, body = alert.build_alert("failure", {}, [], schedule="0 3 * * 1")
-    assert "04:37 UTC" in body
+    assert "04:37, 07:23 ve 10:47 UTC" in body
 
 
 def test_warnings_alone_send_a_softer_alert():
