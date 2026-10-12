@@ -64,8 +64,8 @@ def build_alert(status, rep, tail, url=None, schedule="", today=None):
         lines = ["Haftalık bülten çalışması hata ile bitti. Abonelere e-posta hiç gitmemiş "
                  "veya bazılarına gitmemiş olabilir; ayrıntı aşağıdaki kayıtta."]
         if schedule == MAIN_CRON:
-            lines.append("Bu 03:00 UTC'deki otomatik çalışmaydı. Sayı gönderilmediyse 04:37 UTC'deki "
-                         "yedek çalışma kendiliğinden tekrar dener.")
+            lines.append("Bu 03:00 UTC'deki otomatik çalışmaydı. Sayı gönderilmediyse 04:37, 07:23 ve 10:47 "
+                         "UTC'deki yedek çalışmalar kendiliğinden tekrar dener.")
     elif warnings:
         subject = f"⚠️ Bülten gönderildi, {len(warnings)} uyarı var • {date}"
         lines = ["Bülten abonelere gönderildi, ama dikkat edilmesi gereken bir şey var."]
