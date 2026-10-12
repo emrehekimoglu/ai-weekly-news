@@ -245,6 +245,108 @@
         }
       ],
       "telegram": true
+    },
+    {
+      "date": "2026-10-12",
+      "entries": [
+        {
+          "title": "GPT-6 ve Herkes İçin Akıllı Arayüz",
+          "link": "https://openai.com/index/gpt-6-for-everyone/",
+          "source": "Hacker News",
+          "category": "Yeni Model"
+        },
+        {
+          "title": "Claude Haiku 5.5",
+          "link": "https://www.anthropic.com/claude-haiku-5-5",
+          "source": "Hacker News",
+          "category": "Yeni Model"
+        },
+        {
+          "title": "Nadella: Tüm Modeller 'Ele Geçirilmiş' Varsayılmalı",
+          "link": "https://www.theverge.com/ai-artificial-intelligence/1009337/satya-nadella-says-we-should-assume-all-ai-models-are-compromised",
+          "source": "The Verge AI",
+          "category": "Güvenlik & Olay"
+        },
+        {
+          "title": "Modeller Yeteneklerini Kanıtlanabilir Şekilde Saklayabiliyor",
+          "link": "https://arxiv.org/abs/2610.13928v1",
+          "source": "arXiv",
+          "category": "Güvenlik & Olay"
+        },
+        {
+          "title": "Microsoft Azure Maia'yı Multi-Gigawatt Ölçeğe Taşıyor",
+          "link": "https://blogs.microsoft.com/blog/2026/10/12/microsoft-to-expand-azure-maia-system-to-multi-gigawatt-deployments/",
+          "source": "Microsoft",
+          "category": "Endüstri"
+        },
+        {
+          "title": "OpenAI'ın Geliri Beklenenin 20 Milyar Dolar Altında",
+          "link": "https://www.cnbc.com/2026/10/08/open-ai-revenue-nvidia-oracle-coreweave.html",
+          "source": "Hacker News",
+          "category": "Endüstri"
+        },
+        {
+          "title": "TypeSafe AI'dan 870 Milyon Dolarlık Seri A",
+          "link": "https://typesafe.ai/blog/series-ai",
+          "source": "Hacker News",
+          "category": "Endüstri"
+        },
+        {
+          "title": "Prompteina: Proteinleri Doğal Dille Tasarlamak",
+          "link": "https://arxiv.org/abs/2610.13917v1",
+          "source": "arXiv",
+          "category": "Araştırma"
+        },
+        {
+          "title": "Windows PC'lerde Yerel AI Ajanları: RTX Spark",
+          "link": "https://blogs.nvidia.com/blog/local-ai-rtx-spark-microsoft-windows-event/",
+          "source": "NVIDIA",
+          "category": "Endüstri"
+        },
+        {
+          "title": "Anthropic Kullanım Politikasını Sertleştirdi",
+          "link": "https://www.anthropic.com/news/2026-usage-policy-update",
+          "source": "Anthropic",
+          "category": "Güvenlik & Olay"
+        },
+        {
+          "title": "Karpathy: LLM Yetkinliğinde Ortak Anlayış Açılıyor",
+          "link": "https://twitter.com/karpathy/status/2109361546505966046",
+          "source": "Hacker News",
+          "category": "Endüstri"
+        },
+        {
+          "title": "Claude ile LG webOS'a Tersine Mühendislik",
+          "link": "https://www.reddit.com/r/singularity/comments/1x18s0b/one_developer_used_claude_to_reverseengineer_lgs/",
+          "source": "Reddit r/singularity",
+          "category": "Endüstri"
+        },
+        {
+          "title": "Magentic'e Borusan Ventures'lı 18 Milyon Dolarlık Tur",
+          "link": "https://webrazzi.com/2026/10/12/magentic-borusan-ventures-in-katildigi-turda-18-milyon-dolar-yatirim-aldi/",
+          "source": "Webrazzi",
+          "category": "Türkiye"
+        },
+        {
+          "title": "Hireall: İşe Alımı İlandan Teklife Taşıyan Platform",
+          "link": "https://egirisim.com/2026/10/12/ise-alim-sureclerini-ilandan-teklife-yapay-zekayla-bulusturan-girisim-hireall/",
+          "source": "Egirişim",
+          "category": "Türkiye"
+        },
+        {
+          "title": "Craftgate, Turkven'den Yatırım Aldı",
+          "link": "https://egirisim.com/2026/10/12/odeme-orkestrasyonu-platformu-craftgate-turkvenden-yatirim-aldi/",
+          "source": "Egirişim",
+          "category": "Türkiye"
+        },
+        {
+          "title": "Aurelio Finance",
+          "link": "https://github.com/LosaLosSantos/aurelio-finance",
+          "source": "GitHub Açık Kaynak"
+        }
+      ],
+      "scheduled": true,
+      "telegram": true
     }
   ]
 }
