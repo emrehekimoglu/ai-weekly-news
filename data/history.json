@@ -347,6 +347,102 @@
       ],
       "scheduled": true,
       "telegram": true
+    },
+    {
+      "date": "2026-10-19",
+      "entries": [
+        {
+          "title": "Gemini 4 Argon yayınlandı",
+          "link": "https://deepmind.google/models/gemini/",
+          "source": "Hacker News",
+          "category": "Yeni Model"
+        },
+        {
+          "title": "Meta Muse Spark Open",
+          "link": "https://www.reddit.com/r/LocalLLaMA/comments/1x6r9pz/introducing_muse_spark_open_the_most_capable_us/",
+          "source": "Reddit r/LocalLLaMA",
+          "category": "Açık Kaynak"
+        },
+        {
+          "title": "Meta Muse Wonder ve Muse Wonder Full",
+          "link": "https://about.fb.com/news/2026/10/introducing-muse-wonder-models/",
+          "source": "Meta",
+          "category": "Yeni Model"
+        },
+        {
+          "title": "DeepSeek-V4.1-Flash-1017",
+          "link": "https://www.reddit.com/r/LocalLLaMA/comments/1x84po4/deepseekaideepseekv41flash1017_hugging_face/",
+          "source": "Reddit r/LocalLLaMA",
+          "category": "Yeni Model"
+        },
+        {
+          "title": "Nemotron 3.5 Super VL ve Bolt",
+          "link": "https://blogs.nvidia.com/blog/nemotron-3-5-super-vl/",
+          "source": "NVIDIA",
+          "category": "Yeni Model"
+        },
+        {
+          "title": "Beam: 501B parametrelik açık model",
+          "link": "https://huggingface.co/blog/reflection-beam",
+          "source": "Hugging Face",
+          "category": "Açık Kaynak"
+        },
+        {
+          "title": "OpenAI modelleri kripto cüzdanı hackledi",
+          "link": "https://arstechnica.com/security/2026/10/openai-models-hacked-a-crypto-wallet-and-breached-more-websites/",
+          "source": "Ars Technica",
+          "category": "Güvenlik & Olay"
+        },
+        {
+          "title": "OpenAI mühendisi ofis dinleme iddiasıyla tutuklandı",
+          "link": "https://sfstandard.com/2026/10/13/openai-engineer-arrested-alleged-bugging-executive-conference-room/",
+          "source": "Hacker News",
+          "category": "Güvenlik & Olay"
+        },
+        {
+          "title": "Anthropic: Küçük modeller IoT üzerinden çoğalabilir",
+          "link": "https://arstechnica.com/security/2026/10/anthropic-warns-small-ai-models-could-self-replicate-through-iot-devices/",
+          "source": "Ars Technica",
+          "category": "Güvenlik & Olay"
+        },
+        {
+          "title": "Davranışsal eşleşmeler: ince ayarın yan etkileri",
+          "link": "https://arxiv.org/abs/2610.23847v1",
+          "source": "arXiv",
+          "category": "Araştırma"
+        },
+        {
+          "title": "Web siteleri AI ajanlarına kapıyı kapatıyor",
+          "link": "https://www.theverge.com/ai-artificial-intelligence/1013195/ai-agents-blocked-web",
+          "source": "The Verge AI",
+          "category": "Endüstri"
+        },
+        {
+          "title": "Piksel uzayında vanilla difüzyon transformatörü",
+          "link": "https://arxiv.org/abs/2610.23854v1",
+          "source": "arXiv",
+          "category": "Araştırma"
+        },
+        {
+          "title": "Mueon 65 milyon dolarlık A serisi aldı",
+          "link": "https://webrazzi.com/2026/10/16/yapay-zeka-altyapisi-gelistiren-mueon-65-milyon-dolar-yatirim-aldi/",
+          "source": "Webrazzi",
+          "category": "Türkiye"
+        },
+        {
+          "title": "Loops AI'dan 3,5 milyon dolarlık tohum turu",
+          "link": "https://egirisim.com/2026/10/16/yerli-girisim-loops-ai-3-5-milyon-dolar-yatirim-aldi/",
+          "source": "Egirişim",
+          "category": "Türkiye"
+        },
+        {
+          "title": "AI Cross-Border Ecommerce Agent Toolkit",
+          "link": "https://github.com/heqiangdiao-wq/AI-Cross-Border-Ecommerce-Agent-Toolkit",
+          "source": "GitHub Açık Kaynak"
+        }
+      ],
+      "scheduled": true,
+      "telegram": true
     }
   ]
 }
