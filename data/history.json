@@ -443,6 +443,108 @@
       ],
       "scheduled": true,
       "telegram": true
+    },
+    {
+      "date": "2026-10-26",
+      "entries": [
+        {
+          "title": "Kimi K3.1 Pro",
+          "link": "https://webrazzi.com/2026/10/26/moonshot-ai-kodlama-ve-3d-modelleme-yeteneklerini-gelistirdigi-kimi-k31-proyu-tanitti/",
+          "source": "Webrazzi",
+          "category": "Yeni Model"
+        },
+        {
+          "title": "Claude Duet",
+          "link": "https://claude.com/product/claude-duet",
+          "source": "Hacker News",
+          "category": "Yeni Model"
+        },
+        {
+          "title": "Voxtral 3",
+          "link": "https://mistral.ai/news/voxtral-3/",
+          "source": "Mistral AI",
+          "category": "Yeni Model"
+        },
+        {
+          "title": "WhatsApp'ın yardım sayfalarındaki gizli LLM talimatları",
+          "link": "https://redact.dev/blog/whatsapp-help-pages-hidden-ai-instructions",
+          "source": "Hacker News",
+          "category": "Güvenlik & Olay"
+        },
+        {
+          "title": "Akıllı TV'yi tersine mühendisleyen geliştiriciye erişim yasağı",
+          "link": "https://www.reddit.com/r/singularity/comments/1xduimx/hacker_reverse_engineers_his_samsung_tv_and_finds/",
+          "source": "Reddit r/singularity",
+          "category": "Güvenlik & Olay"
+        },
+        {
+          "title": "NVIDIA Cosmos: Dünya modelleri için yeni araçlar",
+          "link": "https://blogs.nvidia.com/blog/cosmos-open-train-evaluate-deploy-world-models/",
+          "source": "NVIDIA",
+          "category": "Açık Kaynak"
+        },
+        {
+          "title": "DeepSeek DeepInfer",
+          "link": "https://www.reddit.com/r/LocalLLaMA/comments/1xanm55/deepseek_released_deepinfer_open_source/",
+          "source": "Reddit r/LocalLLaMA",
+          "category": "Açık Kaynak"
+        },
+        {
+          "title": "Kitten-TTS 2",
+          "link": "https://www.reddit.com/r/LocalLLaMA/comments/1xc48or/kittentts_2_new_opensource_sota_158_bit_tts/",
+          "source": "Reddit r/LocalLLaMA",
+          "category": "Açık Kaynak"
+        },
+        {
+          "title": "Teknoloji dışında AI getirisi görünmüyor",
+          "link": "https://www.apollo.com/wealth/insights-news/insights/daily-spark/no-signs-of-ai-payoff-outside-the-tech-sector",
+          "source": "Hacker News",
+          "category": "Endüstri"
+        },
+        {
+          "title": "Microsoft MAI-DxO",
+          "link": "https://webrazzi.com/2026/10/23/microsoft-un-yapay-zeka-destekli-tibbi-teshis-sistemi-mai-dxo/",
+          "source": "Webrazzi",
+          "category": "Araştırma"
+        },
+        {
+          "title": "OpenAI, sınır modellerinin eğitim ortamını sıkılaştırdı",
+          "link": "https://openai.com/index/securing-our-frontier-model-training-environment",
+          "source": "OpenAI",
+          "category": "Güvenlik & Olay"
+        },
+        {
+          "title": "Pennsylvania'da AI reklam etiketi zorunluluğu",
+          "link": "https://www.theverge.com/ai-artificial-intelligence/1018187/pennsylvania-ai-deceptive-advertising-act",
+          "source": "The Verge AI",
+          "category": "Endüstri"
+        },
+        {
+          "title": "Raiden Space, e2vc'den tohum öncesi yatırım aldı",
+          "link": "https://egirisim.com/2026/10/22/19-yasindaki-elif-ozdemirin-kurdugu-raiden-space-e2vcden-tohum-oncesi-yatirim-aldi/",
+          "source": "Egirişim",
+          "category": "Türkiye"
+        },
+        {
+          "title": "Arke Telekom'a 1 milyon euro",
+          "link": "https://egirisim.com/2026/10/22/iha-haberlesme-teknolojileri-gelistiren-arke-telekom-act-venture-partnerstan-1-milyon-euro-yatirim-aldi/",
+          "source": "Egirişim",
+          "category": "Türkiye"
+        },
+        {
+          "title": "HUBrica üçüncü dönem mezunları",
+          "link": "https://egirisim.com/2026/10/22/hubrica-hizlandirma-programinin-ucuncu-doneminden-mezun-olan-10-girisim/",
+          "source": "Egirişim",
+          "category": "Türkiye"
+        },
+        {
+          "title": "ai-startup-skills",
+          "link": "https://github.com/huaxialucaicaizi/ai-startup-skills",
+          "source": "GitHub Açık Kaynak"
+        }
+      ],
+      "scheduled": true,
+      "telegram": true
     }
   ]
 }
