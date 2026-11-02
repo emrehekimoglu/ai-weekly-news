@@ -545,6 +545,97 @@
       ],
       "scheduled": true,
       "telegram": true
+    },
+    {
+      "date": "2026-11-02",
+      "entries": [
+        {
+          "title": "Gemini 4 Carbon",
+          "link": "https://deepmind.google/blog/gemini-4-carbon-our-next-frontier-model/",
+          "source": "Google DeepMind",
+          "category": "Yeni Model"
+        },
+        {
+          "title": "Mistral Large 4: Le Chonk",
+          "link": "https://mistral.ai/news/mistral-large-4-oss/",
+          "source": "Mistral AI",
+          "category": "Açık Kaynak"
+        },
+        {
+          "title": "Genie 4 dünya simülatörü",
+          "link": "https://deepmind.google/blog/genie-4-a-new-generation-of-world-simulation/",
+          "source": "Google DeepMind",
+          "category": "Yeni Model"
+        },
+        {
+          "title": "Claude Code eklentisine arka kapı",
+          "link": "https://arstechnica.com/security/2026/10/anthropic-vs-code-extension-on-cursor-backdoored-for-nearly-12-hours/",
+          "source": "Ars Technica",
+          "category": "Güvenlik & Olay"
+        },
+        {
+          "title": "Anthropic'in halka arz başvurusu",
+          "link": "https://www.sec.gov/Archives/edgar/data/2130357/000162828026067168/anthropicpbc-sx1.htm",
+          "source": "Hacker News",
+          "category": "Endüstri"
+        },
+        {
+          "title": "Microsoft Copilot harness",
+          "link": "https://blogs.microsoft.com/blog/2026/10/28/introducing-the-microsoft-copilot-harness-unlocking-the-potential-of-truly-multi-model-agentic-work/",
+          "source": "Microsoft",
+          "category": "Endüstri"
+        },
+        {
+          "title": "AI taramasına ortak opt-out standardı",
+          "link": "https://www.theverge.com/tech/1023763/openai-google-microsoft-ai-scraping-standard-opt-out",
+          "source": "The Verge AI",
+          "category": "Endüstri"
+        },
+        {
+          "title": "Latent Sparse Attention",
+          "link": "https://arxiv.org/abs/2610.42147v1",
+          "source": "arXiv",
+          "category": "Araştırma"
+        },
+        {
+          "title": "OpenAI'dan matematik atılımı iddiası",
+          "link": "https://www.reddit.com/r/singularity/comments/1xgaw9b/openai_says_its_ai_invented_a_new_mathematical/",
+          "source": "Reddit r/singularity",
+          "category": "Araştırma"
+        },
+        {
+          "title": "Sürekli uzayda gizli akıl yürütme",
+          "link": "https://arxiv.org/abs/2610.42149v1",
+          "source": "arXiv",
+          "category": "Araştırma"
+        },
+        {
+          "title": "Altman: RAM masada değil veri merkezinde olmalı",
+          "link": "https://www.theverge.com/ai-artificial-intelligence/1023820/sam-altman-ram-shortage-cloud-servers",
+          "source": "The Verge AI",
+          "category": "Endüstri"
+        },
+        {
+          "title": "Martı'dan sürücüsüz araç hizmeti: RoboMartı",
+          "link": "https://egirisim.com/2026/10/30/martidan-surucusuz-arac-hizmeti-robomarti/",
+          "source": "Egirişim",
+          "category": "Türkiye"
+        },
+        {
+          "title": "Getir'in tamamı Uber'e mi geçiyor?",
+          "link": "https://egirisim.com/2026/10/30/getirin-tamami-ubere-mi-geciyor-hedef-kullanicinin-uygulamada-hizli-alisveris-yapmasi/",
+          "source": "Egirişim",
+          "category": "Türkiye"
+        },
+        {
+          "title": "Vinci Girişim Sermayesi'nden ilk exit: Perciv AI",
+          "link": "https://egirisim.com/2026/10/26/vinci-girisim-sermayesinden-ilk-exit-perciv-ai/",
+          "source": "Egirişim",
+          "category": "Türkiye"
+        }
+      ],
+      "scheduled": true,
+      "telegram": true
     }
   ]
 }
