@@ -6,7 +6,14 @@
   <atom:link href="https://emrehekimoglu.github.io/ai-weekly-news/feed.xml" rel="self" type="application/rss+xml"/>
   <description>Yapay zekâ ve teknoloji dünyasında haftanın öne çıkanları, her Pazartesi Türkçe.</description>
   <language>tr</language>
-  <lastBuildDate>Mon, 26 Oct 2026 06:00:00 +0000</lastBuildDate>
+  <lastBuildDate>Mon, 02 Nov 2026 06:00:00 +0000</lastBuildDate>
+  <item>
+    <title>Gemini 4 Carbon sahneye çıktı (2 Kasım 2026)</title>
+    <link>https://emrehekimoglu.github.io/ai-weekly-news/issues/2026-11-02.html</link>
+    <guid isPermaLink="true">https://emrehekimoglu.github.io/ai-weekly-news/issues/2026-11-02.html</guid>
+    <pubDate>Mon, 02 Nov 2026 06:00:00 +0000</pubDate>
+    <description>Google, yeni sınır modeli Gemini 4 Carbon'u duyurdu; haftanın en çok tartışılan lansmanı oldu.</description>
+  </item>
   <item>
     <title>Kimi K3.1 Pro: Kodlama ve 3D'de yeni iddia (26 Ekim 2026)</title>
     <link>https://emrehekimoglu.github.io/ai-weekly-news/issues/2026-10-26.html</link>
