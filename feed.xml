@@ -6,7 +6,14 @@
   <atom:link href="https://emrehekimoglu.github.io/ai-weekly-news/feed.xml" rel="self" type="application/rss+xml"/>
   <description>Yapay zekâ ve teknoloji dünyasında haftanın öne çıkanları, her Pazartesi Türkçe.</description>
   <language>tr</language>
-  <lastBuildDate>Mon, 02 Nov 2026 06:00:00 +0000</lastBuildDate>
+  <lastBuildDate>Mon, 09 Nov 2026 06:00:00 +0000</lastBuildDate>
+  <item>
+    <title>Kimi açık ağırlığa indi, Nvidia'da casusluk depremi (9 Kasım 2026)</title>
+    <link>https://emrehekimoglu.github.io/ai-weekly-news/issues/2026-11-09.html</link>
+    <guid isPermaLink="true">https://emrehekimoglu.github.io/ai-weekly-news/issues/2026-11-09.html</guid>
+    <pubDate>Mon, 09 Nov 2026 06:00:00 +0000</pubDate>
+    <description>Kimi-K3.1-Pro açık ağırlıklarla yayınlandı; Qwen de açık kaynak sözünü yineledi.</description>
+  </item>
   <item>
     <title>Gemini 4 Carbon sahneye çıktı (2 Kasım 2026)</title>
     <link>https://emrehekimoglu.github.io/ai-weekly-news/issues/2026-11-02.html</link>
