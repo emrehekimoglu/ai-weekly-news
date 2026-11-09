@@ -636,6 +636,108 @@
       ],
       "scheduled": true,
       "telegram": true
+    },
+    {
+      "date": "2026-11-09",
+      "entries": [
+        {
+          "title": "Kimi-K3.1-Pro açık ağırlıklara açıldı",
+          "link": "https://www.reddit.com/r/LocalLLaMA/comments/1xnrhvb/kimik31pro_is_now_openweights/",
+          "source": "Reddit r/LocalLLaMA",
+          "category": "Açık Kaynak"
+        },
+        {
+          "title": "Gemini Omni 1.2 Flash",
+          "link": "https://deepmind.google/blog/gemini-omni-12-flash-fast-and-cost-effective-with-longer-clips/",
+          "source": "Google DeepMind",
+          "category": "Yeni Model"
+        },
+        {
+          "title": "Nvidia'da casusluk soruşturması",
+          "link": "https://www.theverge.com/ai-artificial-intelligence/1029562/nvidia-investigating-jensen-huang-relationship-chinese-spy",
+          "source": "The Verge AI",
+          "category": "Güvenlik & Olay"
+        },
+        {
+          "title": "Claude Code e-posta adresini sitelere gönderiyor",
+          "link": "https://github.com/anthropics/claude-code/issues/107757",
+          "source": "Hacker News",
+          "category": "Güvenlik & Olay"
+        },
+        {
+          "title": "Postman sessizce yapay zekâ eklentisi kuruyor",
+          "link": "https://github.com/postmanlabs/postman-app-support/issues/14370",
+          "source": "Hacker News",
+          "category": "Güvenlik & Olay"
+        },
+        {
+          "title": "OpenAI 11 milyar dolarlık yatırım aldı",
+          "link": "https://webrazzi.com/2026/11/09/openaiin-125-trilyon-dolar-degerleme-uzerinden-11-milyar-dolar-yatirim-aldigi-bildirildi/",
+          "source": "Webrazzi",
+          "category": "Endüstri"
+        },
+        {
+          "title": "Stanford'dan 16 token'lık hafıza sistemi",
+          "link": "https://www.reddit.com/r/singularity/comments/1xpabzx/stanford_researchers_develop_a_new_ai_memory/",
+          "source": "Reddit r/singularity",
+          "category": "Araştırma"
+        },
+        {
+          "title": "Xiaomi insanoidleri ilk 8 saatlik vardiyada",
+          "link": "https://www.reddit.com/r/singularity/comments/1xn5g1f/xiaomis_humanoid_robots_spotted_doing_their_first/",
+          "source": "Reddit r/singularity",
+          "category": "Endüstri"
+        },
+        {
+          "title": "Goldman Sachs Claude Code'u bıraktı",
+          "link": "https://www.thestateofai.com/news/goldman-sachs-claude-code-traders-bankers",
+          "source": "Hacker News",
+          "category": "Endüstri"
+        },
+        {
+          "title": "Ajanik manipülasyon politikaları",
+          "link": "https://arxiv.org/abs/2611.09892v1",
+          "source": "arXiv",
+          "category": "Araştırma"
+        },
+        {
+          "title": "Qwen: açık kaynaktan vazgeçmiyoruz",
+          "link": "https://www.reddit.com/r/LocalLLaMA/comments/1xm28e6/official_statement_qwen_models_will_stick_to_open/",
+          "source": "Reddit r/LocalLLaMA",
+          "category": "Açık Kaynak"
+        },
+        {
+          "title": "Chainalysis'te tüm müşteri kimlikleri çalındı",
+          "link": "https://arstechnica.com/security/2026/11/chainalysis-says-hackers-stole-credentials-and-tokens-for-all-of-its-customers/",
+          "source": "Ars Technica",
+          "category": "Güvenlik & Olay"
+        },
+        {
+          "title": "EvdekiBakıcım kapanıyor",
+          "link": "https://egirisim.com/2026/11/04/yatirimlarla-buyuyen-bir-hikayenin-sonu-evdekibakicim-kapanma-karari-aldi/",
+          "source": "Egirişim",
+          "category": "Türkiye"
+        },
+        {
+          "title": "Workup 14. dönem mezunlarını verdi",
+          "link": "https://egirisim.com/2026/11/05/workup-girisimcilik-programinin-14-doneminden-mezun-olan-girisimler/",
+          "source": "Egirişim",
+          "category": "Türkiye"
+        },
+        {
+          "title": "Tech Istanbul ön kuluçka başvurusu kapanıyor",
+          "link": "https://egirisim.com/2026/11/05/tech-istanbul-on-kulucka-programi-basvurulari-12-kasimda-sona-eriyor/",
+          "source": "Egirişim",
+          "category": "Türkiye"
+        },
+        {
+          "title": "turkish-anti-ai-skill",
+          "link": "https://github.com/yucezerey/turkish-anti-ai-skill",
+          "source": "GitHub Açık Kaynak"
+        }
+      ],
+      "scheduled": true,
+      "telegram": true
     }
   ]
 }
